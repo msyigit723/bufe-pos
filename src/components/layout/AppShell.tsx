@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Cpu,
   RefreshCw,
+  Coffee,
 } from "lucide-react";
 import type { NavTab } from "../../stores/useAppStore";
 import { useAppStore } from "../../stores/useAppStore";
@@ -26,14 +27,26 @@ import { CustomersPage } from "../../features/customers/CustomersPage";
 import { InventoryPage } from "../../features/inventory/InventoryPage";
 import { PurchasesPage } from "../../features/purchases/PurchasesPage";
 import { SettingsPage } from "../../features/settings/SettingsPage";
+import { TablesPage } from "../../features/tables/TablesPage";
 
 export const AppShell: React.FC = () => {
   const { currentTab, setCurrentTab, systemStatus, setSystemStatus, activeCashierName } =
     useAppStore();
 
   const fetchHealthCheck = useCallback(async () => {
-    const status = await DatabaseService.dbHealthCheck();
-    setSystemStatus(status);
+    try {
+      await DatabaseService.runMigrations();
+      const status = await DatabaseService.dbHealthCheck();
+      setSystemStatus(status);
+    } catch (e) {
+      console.error("Database initialization failed:", e);
+      setSystemStatus({
+        foreign_keys_active: false,
+        wal_mode_active: false,
+        total_tables: 0,
+        status: "ERROR",
+      });
+    }
   }, [setSystemStatus]);
 
   useEffect(() => {
@@ -74,11 +87,12 @@ export const AppShell: React.FC = () => {
 
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; shortcut: string }[] = [
     { id: "pos", label: "POS Satış", icon: <ShoppingCart className="w-5 h-5" />, shortcut: "F1" },
+    { id: "tables", label: "Masalar", icon: <Coffee className="w-5 h-5" />, shortcut: "F9" },
     { id: "products", label: "Ürünler", icon: <Package className="w-5 h-5" />, shortcut: "F2" },
     { id: "inventory", label: "Stok", icon: <Boxes className="w-5 h-5" />, shortcut: "F5" },
-    { id: "purchases", label: "Alış & Tedarik", icon: <Truck className="w-5 h-5" />, shortcut: "F7" },
-    { id: "customers", label: "Cari Hesaplar", icon: <Users className="w-5 h-5" />, shortcut: "F6" },
-    { id: "cash", label: "Kasa İşlemleri", icon: <Wallet className="w-5 h-5" />, shortcut: "F3" },
+    { id: "purchases", label: "Alış", icon: <Truck className="w-5 h-5" />, shortcut: "F7" },
+    { id: "customers", label: "Cari", icon: <Users className="w-5 h-5" />, shortcut: "F6" },
+    { id: "cash", label: "Kasa", icon: <Wallet className="w-5 h-5" />, shortcut: "F3" },
     { id: "reports", label: "Raporlar", icon: <BarChart3 className="w-5 h-5" />, shortcut: "F4" },
     { id: "settings", label: "Ayarlar", icon: <Settings className="w-5 h-5" />, shortcut: "F8" },
   ];
@@ -145,6 +159,8 @@ export const AppShell: React.FC = () => {
       <main className="flex-1 overflow-hidden flex flex-col bg-slate-950/50">
         {currentTab === "pos" ? (
           <PosPage />
+        ) : currentTab === "tables" ? (
+          <TablesPage />
         ) : currentTab === "products" ? (
           <ProductsPage />
         ) : currentTab === "inventory" ? (

@@ -13,6 +13,7 @@ use commands::{
     get_inventory_list, add_stock_adjustment, get_stock_movements,
     list_suppliers, create_supplier, update_supplier, process_purchase_invoice, pay_supplier,
     get_app_settings, update_app_settings, backup_database,
+    list_tables, create_table, update_table, get_table_orders, add_table_order, clear_table,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -72,6 +73,12 @@ pub fn run() {
             get_app_settings,
             update_app_settings,
             backup_database,
+            list_tables,
+            create_table,
+            update_table,
+            get_table_orders,
+            add_table_order,
+            clear_table,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -8,9 +8,7 @@ fn get_db_manager() -> DatabaseManager {
     let app_dir = dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("BufePOS");
-    let manager = DatabaseManager::new(app_dir);
-    let _ = manager.run_all_migrations();
-    manager
+    DatabaseManager::new(app_dir)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -2442,6 +2440,111 @@ mod tests {
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
+}
+
+// -------------------------------------------------------------
+// Tables Commands (Masalar)
+// -------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TableDto {
+    pub id: i64,
+    pub name: String,
+    pub is_active: bool,
+    pub status: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TableOrderDto {
+    pub id: i64,
+    pub table_id: i64,
+    pub product_id: i64,
+    pub product_name: String,
+    pub quantity: f64,
+    pub unit_price_kurus: i64,
+}
+
+#[tauri::command]
+pub fn list_tables() -> Result<Vec<TableDto>, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare("SELECT id, name, is_active, status FROM tables ORDER BY name ASC").unwrap();
+    let rows = stmt.query_map([], |row| {
+        Ok(TableDto {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            is_active: row.get(2)?,
+            status: row.get(3)?,
+        })
+    }).unwrap();
+    
+    let mut res = vec![];
+    for r in rows { res.push(r.unwrap()); }
+    Ok(res)
+}
+
+#[tauri::command]
+pub fn create_table(name: String) -> Result<TableDto, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    conn.execute("INSERT INTO tables (name, is_active, status) VALUES (?, 1, 'EMPTY')", params![name]).map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+    Ok(TableDto { id, name, is_active: true, status: "EMPTY".to_string() })
+}
+
+#[tauri::command]
+pub fn update_table(id: i64, name: String, is_active: bool, status: String) -> Result<bool, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    conn.execute("UPDATE tables SET name=?, is_active=?, status=? WHERE id=?", params![name, is_active, status, id]).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn get_table_orders(table_id: i64) -> Result<Vec<TableOrderDto>, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare("SELECT id, table_id, product_id, product_name, quantity, unit_price_kurus FROM table_orders WHERE table_id = ?").unwrap();
+    let rows = stmt.query_map(params![table_id], |row| {
+        Ok(TableOrderDto {
+            id: row.get(0)?,
+            table_id: row.get(1)?,
+            product_id: row.get(2)?,
+            product_name: row.get(3)?,
+            quantity: row.get(4)?,
+            unit_price_kurus: row.get(5)?,
+        })
+    }).unwrap();
+    
+    let mut res = vec![];
+    for r in rows { res.push(r.unwrap()); }
+    Ok(res)
+}
+
+#[tauri::command]
+pub fn add_table_order(table_id: i64, product_id: i64, product_name: String, quantity: f64, unit_price_kurus: i64) -> Result<bool, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    conn.execute("INSERT INTO table_orders (table_id, product_id, product_name, quantity, unit_price_kurus) VALUES (?, ?, ?, ?, ?)", 
+                 params![table_id, product_id, product_name, quantity, unit_price_kurus]).map_err(|e| e.to_string())?;
+    
+    conn.execute("UPDATE tables SET status = 'OCCUPIED' WHERE id = ?", params![table_id]).unwrap();
+    
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn clear_table(table_id: i64) -> Result<bool, String> {
+    let db = get_db_manager();
+    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().unwrap();
+    tx.execute("DELETE FROM table_orders WHERE table_id = ?", params![table_id]).unwrap();
+    tx.execute("UPDATE tables SET status = 'EMPTY' WHERE id = ?", params![table_id]).unwrap();
+    tx.commit().unwrap();
+    Ok(true)
 }
 
 
