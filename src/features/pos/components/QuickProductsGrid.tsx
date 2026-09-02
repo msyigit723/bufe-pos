@@ -19,7 +19,7 @@ export const QuickProductsGrid: React.FC<QuickProductsGridProps> = ({ onAddProdu
       setLoading(true);
       // Let's assume listProducts gives us products we can show
       const res = await ProductService.listProducts();
-      setProducts(res.filter(p => p.isActive).slice(0, 30)); // Show top 30 for now
+      setProducts(res.filter(p => p.isActive && !p.primaryBarcode).slice(0, 30)); // Show top 30 non-barcoded
     } catch (error) {
       console.error(error);
     } finally {

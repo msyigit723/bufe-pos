@@ -183,6 +183,70 @@ export const SettingsPage: React.FC = () => {
         </div>
       </form>
 
+      {/* Parola Değiştirme */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
+        <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <span>🔒</span> Parola Değiştir
+        </h2>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const target = e.target as any;
+          const currentPassword = target.currentPassword.value;
+          const newPassword = target.newPassword.value;
+          
+          if (!currentPassword || !newPassword) return;
+          
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            const { useAppStore } = await import('../../stores/useAppStore');
+            const username = useAppStore.getState().username || (useAppStore.getState().userRole === 'ADMIN' ? 'admin' : 'personel'); // Fallback map
+            
+            await invoke('change_user_password', {
+              username,
+              currentPassword,
+              newPassword
+            });
+            alert('Parolanız başarıyla güncellendi.');
+            target.reset();
+          } catch (err: any) {
+            alert('Hata: ' + err.toString());
+          }
+        }} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Mevcut Parola
+              </label>
+              <input
+                type="password"
+                name="currentPassword"
+                required
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Yeni Parola
+              </label>
+              <input
+                type="password"
+                name="newPassword"
+                required
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+              />
+            </div>
+          </div>
+          <div className="pt-2 text-right">
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition shadow-sm"
+            >
+              Parolayı Güncelle
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Veritabanı Yedekleme */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
         <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">

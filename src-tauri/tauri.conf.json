@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "bufe-pos",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "productName": "Zeryam Bufe POS",
+  "version": "1.0.0",
+  "identifier": "com.zeryam.bufepos",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",

@@ -35,7 +35,6 @@ export const AppShell: React.FC = () => {
 
   const fetchHealthCheck = useCallback(async () => {
     try {
-      await DatabaseService.runMigrations();
       const status = await DatabaseService.dbHealthCheck();
       setSystemStatus(status);
     } catch (e) {
@@ -85,17 +84,19 @@ export const AppShell: React.FC = () => {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [setCurrentTab]);
 
-  const navItems: { id: NavTab; label: string; icon: React.ReactNode; shortcut: string }[] = [
-    { id: "pos", label: "POS Satış", icon: <ShoppingCart className="w-5 h-5" />, shortcut: "F1" },
-    { id: "tables", label: "Masalar", icon: <Coffee className="w-5 h-5" />, shortcut: "F9" },
-    { id: "products", label: "Ürünler", icon: <Package className="w-5 h-5" />, shortcut: "F2" },
-    { id: "inventory", label: "Stok", icon: <Boxes className="w-5 h-5" />, shortcut: "F5" },
-    { id: "purchases", label: "Alış", icon: <Truck className="w-5 h-5" />, shortcut: "F7" },
-    { id: "customers", label: "Cari", icon: <Users className="w-5 h-5" />, shortcut: "F6" },
-    { id: "cash", label: "Kasa", icon: <Wallet className="w-5 h-5" />, shortcut: "F3" },
-    { id: "reports", label: "Raporlar", icon: <BarChart3 className="w-5 h-5" />, shortcut: "F4" },
-    { id: "settings", label: "Ayarlar", icon: <Settings className="w-5 h-5" />, shortcut: "F8" },
+  const allNavItems: { id: NavTab; label: string; icon: React.ReactNode; shortcut: string; roles: string[] }[] = [
+    { id: "pos", label: "POS Satış", icon: <ShoppingCart className="w-5 h-5" />, shortcut: "F1", roles: ["ADMIN", "CASHIER"] },
+    { id: "tables", label: "Masalar", icon: <Coffee className="w-5 h-5" />, shortcut: "F9", roles: ["ADMIN", "CASHIER"] },
+    { id: "products", label: "Ürünler", icon: <Package className="w-5 h-5" />, shortcut: "F2", roles: ["ADMIN"] },
+    { id: "inventory", label: "Stok", icon: <Boxes className="w-5 h-5" />, shortcut: "F5", roles: ["ADMIN", "INVENTORY"] },
+    { id: "purchases", label: "Alış", icon: <Truck className="w-5 h-5" />, shortcut: "F7", roles: ["ADMIN"] },
+    { id: "customers", label: "Cari", icon: <Users className="w-5 h-5" />, shortcut: "F6", roles: ["ADMIN"] },
+    { id: "cash", label: "Kasa", icon: <Wallet className="w-5 h-5" />, shortcut: "F3", roles: ["ADMIN", "CASHIER"] },
+    { id: "reports", label: "Raporlar", icon: <BarChart3 className="w-5 h-5" />, shortcut: "F4", roles: ["ADMIN"] },
+    { id: "settings", label: "Ayarlar", icon: <Settings className="w-5 h-5" />, shortcut: "F8", roles: ["ADMIN"] },
   ];
+
+  const navItems = allNavItems.filter(item => item.roles.includes(useAppStore.getState().userRole) || useAppStore.getState().userRole === 'ADMIN');
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-900 text-slate-100 font-sans select-none overflow-hidden">
@@ -151,6 +152,13 @@ export const AppShell: React.FC = () => {
             className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => useAppStore.getState().logout()}
+            title="Çıkış Yap"
+            className="p-2 rounded-lg bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 transition-colors text-xs font-bold"
+          >
+            ÇIKIŞ
           </button>
         </div>
       </header>

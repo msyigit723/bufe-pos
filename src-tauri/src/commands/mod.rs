@@ -4,9 +4,9 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-fn get_db_manager() -> DatabaseManager {
+pub fn get_db_manager() -> DatabaseManager {
     let app_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
         .join("BufePOS");
     DatabaseManager::new(app_dir)
 }
@@ -2469,7 +2469,7 @@ pub fn list_tables() -> Result<Vec<TableDto>, String> {
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
     
-    let mut stmt = conn.prepare("SELECT id, name, is_active, status FROM tables ORDER BY name ASC").unwrap();
+    let mut stmt = conn.prepare("SELECT id, name, is_active, status FROM tables ORDER BY name ASC").map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], |row| {
         Ok(TableDto {
             id: row.get(0)?,
@@ -2477,10 +2477,10 @@ pub fn list_tables() -> Result<Vec<TableDto>, String> {
             is_active: row.get(2)?,
             status: row.get(3)?,
         })
-    }).unwrap();
+    }).map_err(|e| e.to_string())?;
     
     let mut res = vec![];
-    for r in rows { res.push(r.unwrap()); }
+    for r in rows { res.push(r.map_err(|e| e.to_string())?); }
     Ok(res)
 }
 
@@ -2506,7 +2506,7 @@ pub fn get_table_orders(table_id: i64) -> Result<Vec<TableOrderDto>, String> {
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
     
-    let mut stmt = conn.prepare("SELECT id, table_id, product_id, product_name, quantity, unit_price_kurus FROM table_orders WHERE table_id = ?").unwrap();
+    let mut stmt = conn.prepare("SELECT id, table_id, product_id, product_name, quantity, unit_price_kurus FROM table_orders WHERE table_id = ?").map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![table_id], |row| {
         Ok(TableOrderDto {
             id: row.get(0)?,
@@ -2516,6 +2516,72 @@ pub fn get_table_orders(table_id: i64) -> Result<Vec<TableOrderDto>, String> {
             quantity: row.get(4)?,
             unit_price_kurus: row.get(5)?,
         })
+    }).map_err(|e| e.to_string())?;
+    
+    let mut res = vec![];
+    for r in rows { res.push(r.map_err(|e| e.to_string())?); }
+    Ok(res)
+}
+
+#[tauri::command]
+pub fn add_table_order(table_id: i64, product_id: i64, product_name: String, quantity: f64, unit_price_kurus: i64) -> Result<(), String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    conn.execute("INSERT INTO table_orders (table_id, product_id, product_name, quantity, unit_price_kurus) VALUES (?, ?, ?, ?, ?)", 
+                 params![table_id, product_id, product_name, quantity, unit_price_kurus]).map_err(|e| e.to_string())?;
+    
+    conn.execute("UPDATE tables SET status = 'OCCUPIED' WHERE id = ?", params![table_id]).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_table(table_id: i64) -> Result<(), String> {
+    let db = get_db_manager();
+    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM table_orders WHERE table_id = ?", params![table_id]).map_err(|e| e.to_string())?;
+    tx.execute("UPDATE tables SET status = 'EMPTY' WHERE id = ?", params![table_id]).map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+
+// -------------------------------------------------------------
+// User Management Commands
+// -------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserDto {
+    pub id: i64,
+    pub username: String,
+    pub full_name: String,
+    pub role: String,
+    pub is_active: bool,
+}
+
+#[tauri::command]
+pub fn list_users() -> Result<Vec<UserDto>, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare("
+        SELECT u.id, u.username, u.full_name, r.name as role, u.is_active
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        ORDER BY u.id ASC
+    ").map_err(|e| e.to_string())?;
+    
+    let rows = stmt.query_map([], |row| {
+        Ok(UserDto {
+            id: row.get(0)?,
+            username: row.get(1)?,
+            full_name: row.get(2)?,
+            role: row.get::<_, Option<String>>(3)?.unwrap_or_else(|| "PERSONEL".to_string()),
+            is_active: row.get(4)?,
+        })
     }).unwrap();
     
     let mut res = vec![];
@@ -2524,27 +2590,58 @@ pub fn get_table_orders(table_id: i64) -> Result<Vec<TableOrderDto>, String> {
 }
 
 #[tauri::command]
-pub fn add_table_order(table_id: i64, product_id: i64, product_name: String, quantity: f64, unit_price_kurus: i64) -> Result<bool, String> {
+pub fn get_user_hash(username: String) -> Result<String, String> {
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
     
-    conn.execute("INSERT INTO table_orders (table_id, product_id, product_name, quantity, unit_price_kurus) VALUES (?, ?, ?, ?, ?)", 
-                 params![table_id, product_id, product_name, quantity, unit_price_kurus]).map_err(|e| e.to_string())?;
+    let hash: Option<String> = conn.query_row(
+        "SELECT password_hash FROM users WHERE username = ? AND is_active = 1",
+        params![username],
+        |row| row.get(0)
+    ).optional().map_err(|e| e.to_string())?;
     
-    conn.execute("UPDATE tables SET status = 'OCCUPIED' WHERE id = ?", params![table_id]).unwrap();
-    
+    match hash {
+        Some(h) => Ok(h),
+        None => Err("Kullanıcı bulunamadı veya pasif.".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn change_user_password(username: String, current_password: String, new_password: String) -> Result<bool, String> {
+    let db = get_db_manager();
+    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let hash: Option<String> = tx.query_row(
+        "SELECT password_hash FROM users WHERE username = ?",
+        params![username],
+        |row| row.get(0)
+    ).optional().map_err(|e| e.to_string())?;
+
+    let stored_hash = match hash {
+        Some(h) => h,
+        None => return Err("Kullanıcı bulunamadı.".to_string()),
+    };
+
+    if !crate::security::SecurityManager::verify_password(&current_password, &stored_hash).unwrap_or(false) {
+        return Err("Mevcut parola yanlış.".to_string());
+    }
+
+    let new_hash = crate::security::SecurityManager::hash_password(&new_password).map_err(|e| e.to_string())?;
+
+    tx.execute(
+        "UPDATE users SET password_hash = ? WHERE username = ?",
+        params![new_hash, username]
+    ).map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+
     Ok(true)
 }
 
 #[tauri::command]
-pub fn clear_table(table_id: i64) -> Result<bool, String> {
-    let db = get_db_manager();
-    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
-    let tx = conn.transaction().unwrap();
-    tx.execute("DELETE FROM table_orders WHERE table_id = ?", params![table_id]).unwrap();
-    tx.execute("UPDATE tables SET status = 'EMPTY' WHERE id = ?", params![table_id]).unwrap();
-    tx.commit().unwrap();
-    Ok(true)
+pub fn log_message(msg: String) -> Result<(), String> {
+    let _ = std::fs::write("C:\\Users\\Ali Altın\\Desktop\\bufe-pos\\debug.txt", msg);
+    Ok(())
 }
-
-

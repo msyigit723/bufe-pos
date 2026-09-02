@@ -200,17 +200,8 @@ export const PosPage: React.FC = () => {
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Side: Cart */}
-        <div className="w-8/12 flex flex-col pr-2">
-          <PosCartTable />
-          <PosSummaryBar 
-            onPayment={() => setShowPayment(true)} 
-            onPark={() => store.parkCart()} 
-          />
-        </div>
-        
-        {/* Right Side: Quick Products & Input */}
-        <div className="w-4/12 flex flex-col pl-2 border-l border-slate-800">
+        {/* Left Side: Quick Products & Input */}
+        <div className="w-5/12 flex flex-col pr-2 border-r border-slate-800">
           <div className="p-2 mb-2">
             <input
               ref={barcodeInputRef}
@@ -226,6 +217,15 @@ export const PosPage: React.FC = () => {
             </div>
             <QuickProductsGrid onAddProduct={handleQuickProductAdd} />
           </div>
+        </div>
+
+        {/* Right Side: Cart */}
+        <div className="w-7/12 flex flex-col pl-2">
+          <PosCartTable />
+          <PosSummaryBar 
+            onPayment={() => setShowPayment(true)} 
+            onPark={() => store.parkCart()} 
+          />
         </div>
       </div>
 

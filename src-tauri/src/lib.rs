@@ -14,21 +14,12 @@ use commands::{
     list_suppliers, create_supplier, update_supplier, process_purchase_invoice, pay_supplier,
     get_app_settings, update_app_settings, backup_database,
     list_tables, create_table, update_table, get_table_orders, add_table_order, clear_table,
+    list_users, get_user_hash, change_user_password, log_message
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             db_health_check,
             run_migrations,
@@ -79,7 +70,16 @@ pub fn run() {
             get_table_orders,
             add_table_order,
             clear_table,
+            list_users,
+            get_user_hash,
+            change_user_password,
+            log_message,
         ])
+        .setup(|_app| {
+            let db = crate::commands::get_db_manager();
+            db.run_all_migrations().expect("Failed to initialize database on startup");
+            Ok(())
+        })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| eprintln!("error while running tauri application: {}", e));
 }

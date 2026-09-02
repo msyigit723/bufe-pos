@@ -75,6 +75,7 @@ impl DatabaseManager {
             ("0003_pos_sales_support.sql", include_str!("../../migrations/0003_pos_sales_support.sql")),
             ("0004_tables_management.sql", include_str!("../../migrations/0004_tables_management.sql")),
             ("0005_seed_data.sql", include_str!("../../migrations/0005_seed_data.sql")),
+            ("0006_fix_auth.sql", include_str!("../../migrations/0006_fix_auth.sql")),
         ];
 
         for (name, sql) in migrations {
