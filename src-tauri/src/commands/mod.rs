@@ -1,4 +1,4 @@
-use crate::database::DatabaseManager;
+﻿use crate::database::DatabaseManager;
 use crate::security::SecurityManager;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -124,7 +124,7 @@ pub fn db_health_check() -> Result<HealthCheckResponse, String> {
             total_tables,
             status: "OK".to_string(),
         }),
-        Err(e) => Err(format!("Sağlık kontrolü başarısız: {}", e)),
+        Err(e) => Err(format!("SaÄŸlÄ±k kontrolÃ¼ baÅŸarÄ±sÄ±z: {}", e)),
     }
 }
 
@@ -133,8 +133,8 @@ pub fn run_migrations() -> Result<String, String> {
     let db_manager = get_db_manager();
     db_manager
         .run_all_migrations()
-        .map(|_| "Tüm veritabanı migration işlemleri başarıyla tamamlandı.".to_string())
-        .map_err(|e| format!("Migration hatası: {}", e))
+        .map(|_| "TÃ¼m veritabanÄ± migration iÅŸlemleri baÅŸarÄ±yla tamamlandÄ±.".to_string())
+        .map_err(|e| format!("Migration hatasÄ±: {}", e))
 }
 
 #[tauri::command]
@@ -163,7 +163,7 @@ pub fn list_categories() -> Result<Vec<CategoryDto>, String> {
              FROM categories c
              ORDER BY c.sort_order ASC, c.name ASC",
         )
-        .map_err(|e| format!("Kategori listesi sorgulanamadı: {}", e))?;
+        .map_err(|e| format!("Kategori listesi sorgulanamadÄ±: {}", e))?;
 
     let categories = stmt
         .query_map([], |row| {
@@ -176,7 +176,7 @@ pub fn list_categories() -> Result<Vec<CategoryDto>, String> {
                 product_count: row.get(5)?,
             })
         })
-        .map_err(|e| format!("Kategori verisi okunamadı: {}", e))?
+        .map_err(|e| format!("Kategori verisi okunamadÄ±: {}", e))?
         .collect::<Result<Vec<CategoryDto>, _>>()
         .map_err(|e| format!("Kategoriler listelenirken hata: {}", e))?;
 
@@ -187,7 +187,7 @@ pub fn list_categories() -> Result<Vec<CategoryDto>, String> {
 pub fn create_category(input: CreateCategoryInput) -> Result<CategoryDto, String> {
     let trimmed_name = input.name.trim();
     if trimmed_name.is_empty() {
-        return Err("Kategori adı boş bırakılamaz.".to_string());
+        return Err("Kategori adÄ± boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     let db_manager = get_db_manager();
@@ -226,7 +226,7 @@ pub fn create_category(input: CreateCategoryInput) -> Result<CategoryDto, String
 pub fn update_category(input: UpdateCategoryInput) -> Result<CategoryDto, String> {
     let trimmed_name = input.name.trim();
     if trimmed_name.is_empty() {
-        return Err("Kategori adı boş bırakılamaz.".to_string());
+        return Err("Kategori adÄ± boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     let db_manager = get_db_manager();
@@ -256,13 +256,13 @@ pub fn update_category(input: UpdateCategoryInput) -> Result<CategoryDto, String
                 product_count,
             })
         }
-        Ok(_) => Err("Kategori bulunamadı.".to_string()),
+        Ok(_) => Err("Kategori bulunamadÄ±.".to_string()),
         Err(rusqlite::Error::SqliteFailure(err, _))
             if err.extended_code == 2067 || err.extended_code == 1555 =>
         {
-            Err("Bu isimde başka bir kategori zaten mevcut.".to_string())
+            Err("Bu isimde baÅŸka bir kategori zaten mevcut.".to_string())
         }
-        Err(e) => Err(format!("Kategori güncellenemedi: {}", e)),
+        Err(e) => Err(format!("Kategori gÃ¼ncellenemedi: {}", e)),
     }
 }
 
@@ -278,11 +278,11 @@ pub fn delete_category(id: i64) -> Result<bool, String> {
             params![id],
             |row| row.get(0),
         )
-        .map_err(|e| format!("Kategori kontrolü yapılamadı: {}", e))?;
+        .map_err(|e| format!("Kategori kontrolÃ¼ yapÄ±lamadÄ±: {}", e))?;
 
     if product_count > 0 {
         return Err(
-            "Bu kategoriye bağlı ürünler bulunduğu için kategori silinemiyor. Önce ürünlerin kategorisini değiştirin."
+            "Bu kategoriye baÄŸlÄ± Ã¼rÃ¼nler bulunduÄŸu iÃ§in kategori silinemiyor. Ã–nce Ã¼rÃ¼nlerin kategorisini deÄŸiÅŸtirin."
                 .to_string(),
         );
     }
@@ -350,7 +350,7 @@ pub fn add_product_barcode(
 ) -> Result<BarcodeDto, String> {
     let trimmed = barcode.trim();
     if trimmed.is_empty() {
-        return Err("Barkod boş bırakılamaz.".to_string());
+        return Err("Barkod boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     let db_manager = get_db_manager();
@@ -358,7 +358,7 @@ pub fn add_product_barcode(
 
     let tx = conn
         .transaction()
-        .map_err(|e| format!("Transaction başlatılamadı: {}", e))?;
+        .map_err(|e| format!("Transaction baÅŸlatÄ±lamadÄ±: {}", e))?;
 
     // Check if barcode already exists on ANY product
     let existing_owner: Option<i64> = tx
@@ -368,13 +368,13 @@ pub fn add_product_barcode(
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| format!("Barkod sorgulanamadı: {}", e))?;
+        .map_err(|e| format!("Barkod sorgulanamadÄ±: {}", e))?;
 
     if let Some(owner_id) = existing_owner {
         if owner_id == product_id {
-            return Err("Bu barkod bu üründe zaten kayıtlı.".to_string());
+            return Err("Bu barkod bu Ã¼rÃ¼nde zaten kayÄ±tlÄ±.".to_string());
         } else {
-            return Err("Bu barkod başka bir üründe kayıtlı.".to_string());
+            return Err("Bu barkod baÅŸka bir Ã¼rÃ¼nde kayÄ±tlÄ±.".to_string());
         }
     }
 
@@ -384,7 +384,7 @@ pub fn add_product_barcode(
             "UPDATE product_barcodes SET is_primary = 0 WHERE product_id = ?",
             params![product_id],
         )
-        .map_err(|e| format!("Birincil barkod güncellenemedi: {}", e))?;
+        .map_err(|e| format!("Birincil barkod gÃ¼ncellenemedi: {}", e))?;
     } else {
         // If product has NO barcodes yet, make this first barcode primary automatically
         let count: i64 = tx
@@ -418,7 +418,7 @@ pub fn add_product_barcode(
 
     let barcode_id = tx.last_insert_rowid();
     tx.commit()
-        .map_err(|e| format!("Kayıt tamamlanamadı: {}", e))?;
+        .map_err(|e| format!("KayÄ±t tamamlanamadÄ±: {}", e))?;
 
     Ok(BarcodeDto {
         id: barcode_id,
@@ -436,7 +436,7 @@ pub fn remove_product_barcode(barcode_id: i64) -> Result<bool, String> {
 
     let tx = conn
         .transaction()
-        .map_err(|e| format!("Transaction başlatılamadı: {}", e))?;
+        .map_err(|e| format!("Transaction baÅŸlatÄ±lamadÄ±: {}", e))?;
 
     // Check if this was primary
     let info: Option<(i64, bool)> = tx
@@ -446,7 +446,7 @@ pub fn remove_product_barcode(barcode_id: i64) -> Result<bool, String> {
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
-        .map_err(|e| format!("Barkod kontrolü yapılamadı: {}", e))?;
+        .map_err(|e| format!("Barkod kontrolÃ¼ yapÄ±lamadÄ±: {}", e))?;
 
     if let Some((product_id, was_primary)) = info {
         tx.execute("DELETE FROM product_barcodes WHERE id = ?", params![barcode_id])
@@ -472,10 +472,10 @@ pub fn remove_product_barcode(barcode_id: i64) -> Result<bool, String> {
         }
 
         tx.commit()
-            .map_err(|e| format!("Kayıt tamamlanamadı: {}", e))?;
+            .map_err(|e| format!("KayÄ±t tamamlanamadÄ±: {}", e))?;
         Ok(true)
     } else {
-        Err("Barkod bulunamadı.".to_string())
+        Err("Barkod bulunamadÄ±.".to_string())
     }
 }
 
@@ -486,14 +486,14 @@ pub fn set_primary_barcode(product_id: i64, barcode_id: i64) -> Result<bool, Str
 
     let tx = conn
         .transaction()
-        .map_err(|e| format!("Transaction başlatılamadı: {}", e))?;
+        .map_err(|e| format!("Transaction baÅŸlatÄ±lamadÄ±: {}", e))?;
 
     // Reset all
     tx.execute(
         "UPDATE product_barcodes SET is_primary = 0 WHERE product_id = ?",
         params![product_id],
     )
-    .map_err(|e| format!("Birincil barkod sıfırlanamadı: {}", e))?;
+    .map_err(|e| format!("Birincil barkod sÄ±fÄ±rlanamadÄ±: {}", e))?;
 
     // Set selected
     let rows = tx
@@ -501,10 +501,10 @@ pub fn set_primary_barcode(product_id: i64, barcode_id: i64) -> Result<bool, Str
             "UPDATE product_barcodes SET is_primary = 1 WHERE id = ? AND product_id = ?",
             params![barcode_id, product_id],
         )
-        .map_err(|e| format!("Birincil barkod ayarlanamadı: {}", e))?;
+        .map_err(|e| format!("Birincil barkod ayarlanamadÄ±: {}", e))?;
 
     tx.commit()
-        .map_err(|e| format!("Kayıt tamamlanamadı: {}", e))?;
+        .map_err(|e| format!("KayÄ±t tamamlanamadÄ±: {}", e))?;
     Ok(rows > 0)
 }
 
@@ -528,7 +528,7 @@ pub fn list_products(filter: Option<ProductFilterInput>) -> Result<Vec<ProductDt
     let mut query = String::from(
         "SELECT p.id, p.code, p.name, p.category_id, c.name as category_name,
                 p.unit_name, p.cost_price_kurus, p.sale_price_kurus, p.vat_rate,
-                p.min_stock_level, p.track_skt, p.is_active, p.created_at, p.updated_at
+                p.min_stock_level, p.track_skt, p.is_active, REPLACE(p.created_at, ' ', 'T') || 'Z' as created_at, REPLACE(p.updated_at, ' ', 'T') || 'Z' as updated_at
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
          WHERE 1=1 ",
@@ -569,7 +569,7 @@ pub fn list_products(filter: Option<ProductFilterInput>) -> Result<Vec<ProductDt
 
     let mut stmt = conn
         .prepare(&query)
-        .map_err(|e| format!("Ürün listeleme sorgusu hazırlanamadı: {}", e))?;
+        .map_err(|e| format!("ÃœrÃ¼n listeleme sorgusu hazÄ±rlanamadÄ±: {}", e))?;
 
     let borrowed_params: Vec<&dyn rusqlite::ToSql> =
         params_vec.iter().map(|b| b.as_ref()).collect();
@@ -610,19 +610,19 @@ pub fn list_products(filter: Option<ProductFilterInput>) -> Result<Vec<ProductDt
                 updated_at: row.get(13)?,
             })
         })
-        .map_err(|e| format!("Ürün satırları okunamadı: {}", e))?;
+        .map_err(|e| format!("ÃœrÃ¼n satÄ±rlarÄ± okunamadÄ±: {}", e))?;
 
     let mut partials = Vec::new();
     let mut product_ids = Vec::new();
 
     for r in rows {
-        let p = r.map_err(|e| format!("Ürün parse hatası: {}", e))?;
+        let p = r.map_err(|e| format!("ÃœrÃ¼n parse hatasÄ±: {}", e))?;
         product_ids.push(p.id);
         partials.push(p);
     }
 
     let barcodes_map = fetch_barcodes_for_products(&conn, &product_ids)
-        .map_err(|e| format!("Barkodlar yüklenemedi: {}", e))?;
+        .map_err(|e| format!("Barkodlar yÃ¼klenemedi: {}", e))?;
 
     let result = partials
         .into_iter()
@@ -660,7 +660,7 @@ pub fn get_product_by_id(id: i64) -> Result<Option<ProductDto>, String> {
         .query_row(
             "SELECT p.id, p.code, p.name, p.category_id, c.name as category_name,
                     p.unit_name, p.cost_price_kurus, p.sale_price_kurus, p.vat_rate,
-                    p.min_stock_level, p.track_skt, p.is_active, p.created_at, p.updated_at
+                    p.min_stock_level, p.track_skt, p.is_active, REPLACE(p.created_at, ' ', 'T') || 'Z' as created_at, REPLACE(p.updated_at, ' ', 'T') || 'Z' as updated_at
              FROM products p
              LEFT JOIN categories c ON p.category_id = c.id
              WHERE p.id = ?",
@@ -685,7 +685,7 @@ pub fn get_product_by_id(id: i64) -> Result<Option<ProductDto>, String> {
             },
         )
         .optional()
-        .map_err(|e| format!("Ürün sorgulanamadı: {}", e))?;
+        .map_err(|e| format!("ÃœrÃ¼n sorgulanamadÄ±: {}", e))?;
 
     if let Some((
         pid,
@@ -705,7 +705,7 @@ pub fn get_product_by_id(id: i64) -> Result<Option<ProductDto>, String> {
     )) = product_row
     {
         let barcodes_map = fetch_barcodes_for_products(&conn, &[pid])
-            .map_err(|e| format!("Barkodlar alınamadı: {}", e))?;
+            .map_err(|e| format!("Barkodlar alÄ±namadÄ±: {}", e))?;
         let barcodes = barcodes_map.get(&pid).cloned().unwrap_or_default();
 
         Ok(Some(ProductDto {
@@ -747,7 +747,7 @@ pub fn search_product_by_barcode(barcode: String) -> Result<Option<ProductDto>, 
             |row| row.get(0),
         )
         .optional()
-        .map_err(|e| format!("Barkod aranamadı: {}", e))?;
+        .map_err(|e| format!("Barkod aranamadÄ±: {}", e))?;
 
     if let Some(pid) = product_id {
         get_product_by_id(pid)
@@ -760,7 +760,7 @@ pub fn search_product_by_barcode(barcode: String) -> Result<Option<ProductDto>, 
 pub fn create_product(input: CreateProductInput) -> Result<ProductDto, String> {
     let trimmed_name = input.name.trim();
     if trimmed_name.is_empty() {
-        return Err("Ürün adı boş bırakılamaz.".to_string());
+        return Err("ÃœrÃ¼n adÄ± boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     let mut trimmed_code = input.code.trim().to_string();
@@ -770,11 +770,11 @@ pub fn create_product(input: CreateProductInput) -> Result<ProductDto, String> {
     }
 
     if input.cost_price_kurus < 0 {
-        return Err("Alış fiyatı negatif olamaz.".to_string());
+        return Err("AlÄ±ÅŸ fiyatÄ± negatif olamaz.".to_string());
     }
 
     if input.sale_price_kurus < 0 {
-        return Err("Satış fiyatı negatif olamaz.".to_string());
+        return Err("SatÄ±ÅŸ fiyatÄ± negatif olamaz.".to_string());
     }
 
     let unit_name = input.unit_name.unwrap_or_else(|| "Adet".to_string());
@@ -799,13 +799,13 @@ pub fn create_product(input: CreateProductInput) -> Result<ProductDto, String> {
             .unwrap_or(false);
 
         if existing {
-            return Err("Bu barkod başka bir üründe kayıtlı.".to_string());
+            return Err("Bu barkod baÅŸka bir Ã¼rÃ¼nde kayÄ±tlÄ±.".to_string());
         }
     }
 
     let tx = conn
         .transaction()
-        .map_err(|e| format!("Transaction başlatılamadı: {}", e))?;
+        .map_err(|e| format!("Transaction baÅŸlatÄ±lamadÄ±: {}", e))?;
 
     let insert_result = tx.execute(
         "INSERT INTO products (code, name, category_id, unit_name, cost_price_kurus, sale_price_kurus, vat_rate, min_stock_level, track_skt, is_active)
@@ -829,9 +829,9 @@ pub fn create_product(input: CreateProductInput) -> Result<ProductDto, String> {
         Err(rusqlite::Error::SqliteFailure(err, _))
             if err.extended_code == 2067 || err.extended_code == 1555 =>
         {
-            return Err("Bu ürün kodu/SKU ile kayıtlı başka bir ürün mevcut.".to_string());
+            return Err("Bu Ã¼rÃ¼n kodu/SKU ile kayÄ±tlÄ± baÅŸka bir Ã¼rÃ¼n mevcut.".to_string());
         }
-        Err(e) => return Err(format!("Ürün eklenemedi: {}", e)),
+        Err(e) => return Err(format!("ÃœrÃ¼n eklenemedi: {}", e)),
     };
 
     let mut barcodes = Vec::new();
@@ -853,31 +853,31 @@ pub fn create_product(input: CreateProductInput) -> Result<ProductDto, String> {
     }
 
     tx.commit()
-        .map_err(|e| format!("Kayıt onaylanamadı: {}", e))?;
+        .map_err(|e| format!("KayÄ±t onaylanamadÄ±: {}", e))?;
 
     // Return full product
     get_product_by_id(product_id)?
-        .ok_or_else(|| "Oluşturulan ürün bilgisi okunamadı.".to_string())
+        .ok_or_else(|| "OluÅŸturulan Ã¼rÃ¼n bilgisi okunamadÄ±.".to_string())
 }
 
 #[tauri::command]
 pub fn update_product(input: UpdateProductInput) -> Result<ProductDto, String> {
     let trimmed_name = input.name.trim();
     if trimmed_name.is_empty() {
-        return Err("Ürün adı boş bırakılamaz.".to_string());
+        return Err("ÃœrÃ¼n adÄ± boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     let trimmed_code = input.code.trim();
     if trimmed_code.is_empty() {
-        return Err("Ürün kodu boş bırakılamaz.".to_string());
+        return Err("ÃœrÃ¼n kodu boÅŸ bÄ±rakÄ±lamaz.".to_string());
     }
 
     if input.cost_price_kurus < 0 {
-        return Err("Alış fiyatı negatif olamaz.".to_string());
+        return Err("AlÄ±ÅŸ fiyatÄ± negatif olamaz.".to_string());
     }
 
     if input.sale_price_kurus < 0 {
-        return Err("Satış fiyatı negatif olamaz.".to_string());
+        return Err("SatÄ±ÅŸ fiyatÄ± negatif olamaz.".to_string());
     }
 
     let db_manager = get_db_manager();
@@ -902,14 +902,14 @@ pub fn update_product(input: UpdateProductInput) -> Result<ProductDto, String> {
 
     match result {
         Ok(rows) if rows > 0 => get_product_by_id(input.id)?
-            .ok_or_else(|| "Güncellenen ürün okunamadı.".to_string()),
-        Ok(_) => Err("Güncellenecek ürün bulunamadı.".to_string()),
+            .ok_or_else(|| "GÃ¼ncellenen Ã¼rÃ¼n okunamadÄ±.".to_string()),
+        Ok(_) => Err("GÃ¼ncellenecek Ã¼rÃ¼n bulunamadÄ±.".to_string()),
         Err(rusqlite::Error::SqliteFailure(err, _))
             if err.extended_code == 2067 || err.extended_code == 1555 =>
         {
-            Err("Bu ürün kodu/SKU başka bir ürüne ait.".to_string())
+            Err("Bu Ã¼rÃ¼n kodu/SKU baÅŸka bir Ã¼rÃ¼ne ait.".to_string())
         }
-        Err(e) => Err(format!("Ürün güncellenemedi: {}", e)),
+        Err(e) => Err(format!("ÃœrÃ¼n gÃ¼ncellenemedi: {}", e)),
     }
 }
 
@@ -923,7 +923,7 @@ pub fn set_product_active(id: i64, is_active: bool) -> Result<bool, String> {
             "UPDATE products SET is_active = ? WHERE id = ?",
             params![is_active, id],
         )
-        .map_err(|e| format!("Ürün durumu güncellenemedi: {}", e))?;
+        .map_err(|e| format!("ÃœrÃ¼n durumu gÃ¼ncellenemedi: {}", e))?;
 
     Ok(rows > 0)
 }
@@ -952,14 +952,14 @@ pub fn delete_product(id: i64) -> Result<bool, String> {
 
     if sales_count > 0 || stock_movements_count > 0 {
         return Err(
-            "Bu ürüne ait satış veya stok hareketleri bulunduğu için fiziksel olarak silinemez. Bunun yerine ürünü pasife alabilirsiniz."
+            "Bu Ã¼rÃ¼ne ait satÄ±ÅŸ veya stok hareketleri bulunduÄŸu iÃ§in fiziksel olarak silinemez. Bunun yerine Ã¼rÃ¼nÃ¼ pasife alabilirsiniz."
                 .to_string(),
         );
     }
 
     let rows = conn
         .execute("DELETE FROM products WHERE id = ?", params![id])
-        .map_err(|e| format!("Ürün silinemedi: {}", e))?;
+        .map_err(|e| format!("ÃœrÃ¼n silinemedi: {}", e))?;
 
     Ok(rows > 0)
 }
@@ -1043,32 +1043,32 @@ pub struct PosInitialStateDto {
 #[tauri::command]
 pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
     if input.items.is_empty() {
-        return Err("Satışta en az bir ürün olmalıdır.".to_string());
+        return Err("SatÄ±ÅŸta en az bir Ã¼rÃ¼n olmalÄ±dÄ±r.".to_string());
     }
 
     for item in &input.items {
         if item.quantity <= 0.0 {
-            return Err("Miktar 0'dan büyük olmalıdır.".to_string());
+            return Err("Miktar 0'dan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
         }
         if item.unit_price_kurus < 0 {
-            return Err("Birim fiyat 0'dan küçük olamaz.".to_string());
+            return Err("Birim fiyat 0'dan kÃ¼Ã§Ã¼k olamaz.".to_string());
         }
         if item.discount_amount_kurus < 0 {
-            return Err("İndirim tutarı 0'dan küçük olamaz.".to_string());
+            return Err("Ä°ndirim tutarÄ± 0'dan kÃ¼Ã§Ã¼k olamaz.".to_string());
         }
     }
 
     let valid_payment_types = ["NAKIT", "KREDI_KARTI", "CARI_VERESIYE", "QR"];
     for payment in &input.payments {
         if !valid_payment_types.contains(&payment.payment_type.as_str()) {
-            return Err(format!("Geçersiz ödeme tipi: {}", payment.payment_type));
+            return Err(format!("GeÃ§ersiz Ã¶deme tipi: {}", payment.payment_type));
         }
     }
 
-    // PHASE 5: Veresiye satış → müşteri zorunlu
+    // PHASE 5: Veresiye satÄ±ÅŸ â†’ mÃ¼ÅŸteri zorunlu
     let has_veresiye = input.payments.iter().any(|p| p.payment_type == "CARI_VERESIYE");
     if has_veresiye && input.customer_id.is_none() {
-        return Err("Veresiye satış için müşteri seçilmelidir.".to_string());
+        return Err("Veresiye satÄ±ÅŸ iÃ§in mÃ¼ÅŸteri seÃ§ilmelidir.".to_string());
     }
 
     let mut subtotal_kurus = 0;
@@ -1094,18 +1094,18 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
     let has_nakit = input.payments.iter().any(|p| p.payment_type == "NAKIT");
     if has_nakit {
         if total_payment < grand_total_kurus {
-            return Err("Ödeme tutarı toplam tutardan az olamaz.".to_string());
+            return Err("Ã–deme tutarÄ± toplam tutardan az olamaz.".to_string());
         }
     } else {
         if total_payment != grand_total_kurus {
-            return Err("Nakit dışı ödemelerde ödeme tutarı toplam tutara eşit olmalıdır.".to_string());
+            return Err("Nakit dÄ±ÅŸÄ± Ã¶demelerde Ã¶deme tutarÄ± toplam tutara eÅŸit olmalÄ±dÄ±r.".to_string());
         }
     }
 
     let db_manager = get_db_manager();
     let mut conn = db_manager.get_connection().map_err(|e| e.to_string())?;
     
-    let tx = conn.transaction().map_err(|e| format!("İşlem başlatılamadı: {}", e))?;
+    let tx = conn.transaction().map_err(|e| format!("Ä°ÅŸlem baÅŸlatÄ±lamadÄ±: {}", e))?;
 
     // Check products
     for item in &input.items {
@@ -1116,8 +1116,8 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         );
         match is_active {
             Ok(true) => {},
-            Ok(false) => return Err(format!("Ürün pasif durumda: ID {}", item.product_id)),
-            Err(_) => return Err(format!("Ürün bulunamadı: ID {}", item.product_id)),
+            Ok(false) => return Err(format!("ÃœrÃ¼n pasif durumda: ID {}", item.product_id)),
+            Err(_) => return Err(format!("ÃœrÃ¼n bulunamadÄ±: ID {}", item.product_id)),
         }
     }
 
@@ -1146,7 +1146,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         "INSERT INTO sales (sync_id, receipt_no, customer_id, warehouse_id, cash_register_id, subtotal_kurus, vat_amount_kurus, discount_amount_kurus, total_amount_kurus, payment_status, user_id) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![sync_id, receipt_no, input.customer_id, warehouse_id, cash_register_id, subtotal_kurus, vat_amount_kurus, discount_amount_kurus, grand_total_kurus, payment_status, user_id],
-    ).map_err(|e| format!("Satış kaydedilemedi: {}", e))?;
+    ).map_err(|e| format!("SatÄ±ÅŸ kaydedilemedi: {}", e))?;
 
     let sale_id = tx.last_insert_rowid();
 
@@ -1158,7 +1158,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
             "SELECT name, cost_price_kurus FROM products WHERE id = ?",
             params![item.product_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
-        ).map_err(|e| format!("Ürün bilgisi alınamadı: {}", e))?;
+        ).map_err(|e| format!("ÃœrÃ¼n bilgisi alÄ±namadÄ±: {}", e))?;
 
         let quantity_as_i64 = item.quantity as i64;
         let line_total = (item.unit_price_kurus * quantity_as_i64) - item.discount_amount_kurus;
@@ -1168,14 +1168,14 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
             "INSERT INTO sale_items (sale_id, product_id, barcode, product_name, unit_price_kurus, cost_price_kurus, quantity, vat_rate, vat_amount_kurus, discount_amount_kurus, line_total_kurus)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![sale_id, item.product_id, item.barcode, product_name, item.unit_price_kurus, cost_price_kurus, item.quantity, item.vat_rate, vat_amount, item.discount_amount_kurus, line_total],
-        ).map_err(|e| format!("Satış kalemi kaydedilemedi: {}", e))?;
+        ).map_err(|e| format!("SatÄ±ÅŸ kalemi kaydedilemedi: {}", e))?;
 
         tx.execute(
             "INSERT INTO stock (product_id, warehouse_id, quantity) 
              VALUES (?, ?, ?) 
              ON CONFLICT(product_id, warehouse_id) DO UPDATE SET quantity = quantity + excluded.quantity",
             params![item.product_id, warehouse_id, -item.quantity],
-        ).map_err(|e| format!("Stok güncellenemedi: {}", e))?;
+        ).map_err(|e| format!("Stok gÃ¼ncellenemedi: {}", e))?;
 
         tx.execute(
             "INSERT INTO stock_movements (product_id, warehouse_id, movement_type, quantity, reference_id, reference_type)
@@ -1202,7 +1202,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         tx.execute(
             "INSERT INTO sale_payments (sale_id, payment_type, amount_kurus) VALUES (?, ?, ?)",
             params![sale_id, payment.payment_type, payment.amount_kurus],
-        ).map_err(|e| format!("Ödeme kaydedilemedi: {}", e))?;
+        ).map_err(|e| format!("Ã–deme kaydedilemedi: {}", e))?;
 
         if payment.payment_type == "NAKIT" {
             nakit_amount += payment.amount_kurus;
@@ -1224,7 +1224,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         tx.execute(
             "UPDATE cash_registers SET current_balance_kurus = current_balance_kurus + ? WHERE id = ?",
             params![nakit_amount, cash_register_id],
-        ).map_err(|e| format!("Kasa bakiyesi güncellenemedi: {}", e))?;
+        ).map_err(|e| format!("Kasa bakiyesi gÃ¼ncellenemedi: {}", e))?;
 
         tx.execute(
             "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, sale_id, user_id)
@@ -1233,7 +1233,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         ).map_err(|e| format!("Kasa hareketi kaydedilemedi: {}", e))?;
     }
 
-    // PHASE 5: Veresiye satış → müşteri bakiyesini güncelle
+    // PHASE 5: Veresiye satÄ±ÅŸ â†’ mÃ¼ÅŸteri bakiyesini gÃ¼ncelle
     if has_veresiye {
         let veresiye_amount: i64 = input.payments.iter()
             .filter(|p| p.payment_type == "CARI_VERESIYE")
@@ -1244,18 +1244,18 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
                 tx.execute(
                     "UPDATE customers SET balance_kurus = balance_kurus + ? WHERE id = ?",
                     params![veresiye_amount, cid],
-                ).map_err(|e| format!("Müşteri bakiyesi güncellenemedi: {}", e))?;
+                ).map_err(|e| format!("MÃ¼ÅŸteri bakiyesi gÃ¼ncellenemedi: {}", e))?;
             }
         }
     }
 
     let created_at: String = tx.query_row(
-        "SELECT created_at FROM sales WHERE id = ?",
+        "SELECT REPLACE(created_at, ' ', 'T') || 'Z' FROM sales WHERE id = ?",
         params![sale_id],
         |row| row.get(0),
     ).unwrap_or_default();
 
-    tx.commit().map_err(|e| format!("İşlem tamamlanamadı: {}", e))?;
+    tx.commit().map_err(|e| format!("Ä°ÅŸlem tamamlanamadÄ±: {}", e))?;
 
     Ok(SaleResultDto {
         sale_id,
@@ -1278,13 +1278,13 @@ pub fn get_recent_sales(limit: Option<i64>) -> Result<Vec<SaleSummaryDto>, Strin
     let limit = limit.unwrap_or(20);
 
     let mut stmt = conn.prepare(
-        "SELECT s.id, s.receipt_no, s.total_amount_kurus, s.payment_status, s.created_at, COUNT(si.id) as item_count
+        "SELECT s.id, s.receipt_no, s.total_amount_kurus, s.payment_status, REPLACE(s.created_at, ' ', 'T') || 'Z' as created_at, COUNT(si.id) as item_count
          FROM sales s
          LEFT JOIN sale_items si ON s.id = si.sale_id
          GROUP BY s.id
          ORDER BY s.created_at DESC
          LIMIT ?"
-    ).map_err(|e| format!("Sorgu hazırlanamadı: {}", e))?;
+    ).map_err(|e| format!("Sorgu hazÄ±rlanamadÄ±: {}", e))?;
 
     let iter = stmt.query_map(params![limit], |row| {
         Ok(SaleSummaryDto {
@@ -1295,7 +1295,7 @@ pub fn get_recent_sales(limit: Option<i64>) -> Result<Vec<SaleSummaryDto>, Strin
             created_at: row.get(4)?,
             item_count: row.get(5)?,
         })
-    }).map_err(|e| format!("Satışlar okunamadı: {}", e))?;
+    }).map_err(|e| format!("SatÄ±ÅŸlar okunamadÄ±: {}", e))?;
 
     let mut sales = Vec::new();
     for sale in iter {
@@ -1325,7 +1325,7 @@ pub fn get_pos_initial_state() -> Result<PosInitialStateDto, String> {
         "SELECT id, full_name FROM users WHERE id = 1",
         [],
         |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
-    ).unwrap_or((1, "Yönetici (Admin)".to_string()));
+    ).unwrap_or((1, "YÃ¶netici (Admin)".to_string()));
 
     Ok(PosInitialStateDto {
         default_warehouse_id,
@@ -1336,7 +1336,7 @@ pub fn get_pos_initial_state() -> Result<PosInitialStateDto, String> {
     })
 }
 
-// --- PHASE 4: KASA YÖNETİMİ VE RAPORLAR ---
+// --- PHASE 4: KASA YÃ–NETÄ°MÄ° VE RAPORLAR ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CashSessionDto {
@@ -1387,7 +1387,7 @@ pub fn open_cash_register(cash_register_id: i64, opening_balance_kurus: i64) -> 
         |row| row.get(0),
     );
     if existing.is_ok() {
-        return Err("Bu kasa zaten açık.".to_string());
+        return Err("Bu kasa zaten aÃ§Ä±k.".to_string());
     }
 
     tx.execute(
@@ -1433,7 +1433,7 @@ pub fn get_active_cash_session(cash_register_id: i64) -> Result<Option<CashSessi
 #[tauri::command]
 pub fn add_cash_movement(cash_register_id: i64, movement_type: String, amount_kurus: i64, note: Option<String>) -> Result<(), String> {
     if amount_kurus <= 0 {
-        return Err("Tutar sıfırdan büyük olmalıdır.".to_string());
+        return Err("Tutar sÄ±fÄ±rdan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
     }
     
     let db = get_db_manager();
@@ -1448,7 +1448,7 @@ pub fn add_cash_movement(cash_register_id: i64, movement_type: String, amount_ku
     ).unwrap_or(false);
     
     if !is_open {
-        return Err("Kapalı kasaya hareket eklenemez.".to_string());
+        return Err("KapalÄ± kasaya hareket eklenemez.".to_string());
     }
 
     let multiplier = if movement_type == "NAKIT_GIRIS" || movement_type == "SATIS_TAHSILAT" || movement_type == "VERESIYE_TAHSILAT" { 1 } else { -1 };
@@ -1502,7 +1502,7 @@ pub fn get_cash_movements(cash_register_id: i64) -> Result<Vec<CashMovementDto>,
     
     // Get movements since the session opened, or just today if closed
     let mut stmt = conn.prepare(
-        "SELECT id, movement_type, amount_kurus, note, created_at 
+        "SELECT id, movement_type, amount_kurus, note, REPLACE(created_at, ' ', 'T') || 'Z' as created_at 
          FROM cash_movements 
          WHERE cash_register_id = ? AND date(created_at, 'localtime') = date('now', 'localtime')
          ORDER BY id DESC"
@@ -1533,14 +1533,14 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     // Using date filters on created_at
     // For SQLite, dates are 'YYYY-MM-DD HH:MM:SS'
     let sale_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE created_at >= ? AND created_at <= ?",
+        "SELECT COUNT(*) FROM sales WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') <= ?",
         params![start_date, end_date],
         |row| row.get(0),
     ).unwrap_or(0);
 
     let mut stmt = conn.prepare(
         "SELECT COALESCE(SUM(total_amount_kurus), 0), COALESCE(SUM(discount_amount_kurus), 0), COALESCE(SUM(vat_amount_kurus), 0)
-         FROM sales WHERE created_at >= ? AND created_at <= ?"
+         FROM sales WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') <= ?"
     ).map_err(|e| e.to_string())?;
     
     let (total_sales_kurus, total_discount_kurus, total_vat_kurus) = stmt.query_row(params![start_date, end_date], |row| {
@@ -1550,7 +1550,7 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     let total_items_sold: f64 = conn.query_row(
         "SELECT COALESCE(SUM(quantity), 0) FROM sale_items 
          JOIN sales ON sales.id = sale_items.sale_id
-         WHERE sales.created_at >= ? AND sales.created_at <= ?",
+         WHERE datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?",
         params![start_date, end_date],
         |row| row.get(0),
     ).unwrap_or(0.0);
@@ -1558,7 +1558,7 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     let mut stmt_pay = conn.prepare(
         "SELECT payment_type, COALESCE(SUM(amount_kurus), 0) FROM sale_payments 
          JOIN sales ON sales.id = sale_payments.sale_id
-         WHERE sales.created_at >= ? AND sales.created_at <= ?
+         WHERE datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?
          GROUP BY payment_type"
     ).map_err(|e| e.to_string())?;
     
@@ -1596,7 +1596,7 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     })
 }
 
-// --- PHASE 5: MÜŞTERİ / VERESİYE ---
+// --- PHASE 5: MÃœÅTERÄ° / VERESÄ°YE ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CustomerDto {
@@ -1616,7 +1616,7 @@ pub struct CustomerHistoryDto {
 #[tauri::command]
 pub fn create_customer(name: String, phone: Option<String>) -> Result<i64, String> {
     if name.trim().is_empty() {
-        return Err("Müşteri adı boş olamaz.".to_string());
+        return Err("MÃ¼ÅŸteri adÄ± boÅŸ olamaz.".to_string());
     }
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
@@ -1630,7 +1630,7 @@ pub fn create_customer(name: String, phone: Option<String>) -> Result<i64, Strin
 #[tauri::command]
 pub fn update_customer(id: i64, name: String, phone: Option<String>) -> Result<(), String> {
     if name.trim().is_empty() {
-        return Err("Müşteri adı boş olamaz.".to_string());
+        return Err("MÃ¼ÅŸteri adÄ± boÅŸ olamaz.".to_string());
     }
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
@@ -1675,9 +1675,9 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
     
-    // Veresiye satışlar
+    // Veresiye satÄ±ÅŸlar
     let mut stmt = conn.prepare(
-        "SELECT s.created_at, 'Veresiye Satış - ' || s.receipt_no, sp.amount_kurus
+        "SELECT REPLACE(s.created_at, ' ', 'T') || 'Z', 'Veresiye SatÄ±ÅŸ - ' || s.receipt_no, sp.amount_kurus
          FROM sale_payments sp
          JOIN sales s ON s.id = sp.sale_id
          WHERE s.customer_id = ? AND sp.payment_type = 'CARI_VERESIYE'
@@ -1697,9 +1697,9 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
         if let Ok(h) = r { results.push(h); }
     }
     
-    // Tahsilat hareketleri (negatif = borç azalması)
+    // Tahsilat hareketleri (negatif = borÃ§ azalmasÄ±)
     let mut stmt2 = conn.prepare(
-        "SELECT cm.created_at, 'Tahsilat', cm.amount_kurus
+        "SELECT REPLACE(cm.created_at, ' ', 'T') || 'Z', 'Tahsilat', cm.amount_kurus
          FROM cash_movements cm
          WHERE cm.customer_id = ? AND cm.movement_type = 'VERESIYE_TAHSILAT'
          ORDER BY cm.created_at DESC"
@@ -1711,7 +1711,7 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
             description: row.get(1)?,
             amount_kurus: {
                 let amt: i64 = row.get(2)?;
-                -amt // Tahsilat borcu azaltır
+                -amt // Tahsilat borcu azaltÄ±r
             },
         })
     }).map_err(|e| e.to_string())?;
@@ -1720,7 +1720,7 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
         if let Ok(h) = r { results.push(h); }
     }
     
-    // Tarihe göre sırala
+    // Tarihe gÃ¶re sÄ±rala
     results.sort_by(|a, b| b.date.cmp(&a.date));
     Ok(results)
 }
@@ -1728,7 +1728,7 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
 #[tauri::command]
 pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, cash_register_id: i64) -> Result<(), String> {
     if amount_kurus <= 0 {
-        return Err("Tahsilat tutarı sıfırdan büyük olmalıdır.".to_string());
+        return Err("Tahsilat tutarÄ± sÄ±fÄ±rdan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
     }
     
     let db = get_db_manager();
@@ -1742,22 +1742,22 @@ pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, cash_regist
     ).unwrap_or(false);
     
     if !is_open {
-        return Err("Kasa kapalı. Tahsilat yapılamaz.".to_string());
+        return Err("Kasa kapalÄ±. Tahsilat yapÄ±lamaz.".to_string());
     }
     
-    // Müşteri bakiyesini düş
+    // MÃ¼ÅŸteri bakiyesini dÃ¼ÅŸ
     tx.execute(
         "UPDATE customers SET balance_kurus = balance_kurus - ? WHERE id = ?",
         params![amount_kurus, customer_id],
     ).map_err(|e| e.to_string())?;
     
-    // Kasa bakiyesini artır
+    // Kasa bakiyesini artÄ±r
     tx.execute(
         "UPDATE cash_registers SET current_balance_kurus = current_balance_kurus + ? WHERE id = ?",
         params![amount_kurus, cash_register_id],
     ).map_err(|e| e.to_string())?;
     
-    // Kasa hareketi oluştur
+    // Kasa hareketi oluÅŸtur
     tx.execute(
         "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, customer_id, user_id) VALUES (?, 'VERESIYE_TAHSILAT', ?, ?, 1)",
         params![cash_register_id, amount_kurus, customer_id],
@@ -1767,7 +1767,7 @@ pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, cash_regist
     Ok(())
 }
 
-// --- PHASE 6: STOK VE ENVANTER YÖNETİMİ ---
+// --- PHASE 6: STOK VE ENVANTER YÃ–NETÄ°MÄ° ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InventoryItemDto {
@@ -1909,15 +1909,15 @@ pub fn add_stock_adjustment(input: StockAdjustmentInput) -> Result<(), String> {
     ).unwrap_or(0.0);
 
     let (delta_qty, movement_type, note_prefix) = match input.adjustment_type.as_str() {
-        "GIRIS" => (input.quantity, "SAYIM_FAZLASI", "Stok Girişi"),
-        "CIKIS" => (-input.quantity, "SAYIM_EKSIGI", "Stok Çıkışı"),
+        "GIRIS" => (input.quantity, "SAYIM_FAZLASI", "Stok GiriÅŸi"),
+        "CIKIS" => (-input.quantity, "SAYIM_EKSIGI", "Stok Ã‡Ä±kÄ±ÅŸÄ±"),
         "FIRE" => (-input.quantity, "FIRE", "Fire/Zayi"),
         "SAYIM" => {
             let delta = input.quantity - current_stock;
             let mtype = if delta >= 0.0 { "SAYIM_FAZLASI" } else { "SAYIM_EKSIGI" };
-            (delta, mtype, "Sayım Düzeltme")
+            (delta, mtype, "SayÄ±m DÃ¼zeltme")
         }
-        _ => return Err("Geçersiz stok işlem türü.".to_string()),
+        _ => return Err("GeÃ§ersiz stok iÅŸlem tÃ¼rÃ¼.".to_string()),
     };
 
     let new_stock = match input.adjustment_type.as_str() {
@@ -1931,7 +1931,7 @@ pub fn add_stock_adjustment(input: StockAdjustmentInput) -> Result<(), String> {
          VALUES (?, 1, ?)
          ON CONFLICT(product_id, warehouse_id) DO UPDATE SET quantity = ?",
         params![input.product_id, new_stock, new_stock],
-    ).map_err(|e| format!("Stok güncellenemedi: {}", e))?;
+    ).map_err(|e| format!("Stok gÃ¼ncellenemedi: {}", e))?;
 
     let note_text = match input.note {
         Some(n) if !n.trim().is_empty() => format!("{} - {}", note_prefix, n.trim()),
@@ -1958,7 +1958,7 @@ pub fn get_stock_movements(product_id: Option<i64>, limit: Option<i64>) -> Resul
     let query = match product_id {
         Some(_) => "SELECT sm.id, sm.product_id, p.name,
                            (SELECT pb.barcode FROM product_barcodes pb WHERE pb.product_id = p.id AND pb.is_primary = 1 LIMIT 1) as barcode,
-                           sm.movement_type, sm.quantity, sm.unit_price_kurus, sm.note, sm.created_at
+                           sm.movement_type, sm.quantity, sm.unit_price_kurus, sm.note, REPLACE(sm.created_at, ' ', 'T') || 'Z' as created_at
                     FROM stock_movements sm
                     JOIN products p ON sm.product_id = p.id
                     WHERE sm.product_id = ?
@@ -1966,7 +1966,7 @@ pub fn get_stock_movements(product_id: Option<i64>, limit: Option<i64>) -> Resul
                     LIMIT ?",
         None => "SELECT sm.id, sm.product_id, p.name,
                         (SELECT pb.barcode FROM product_barcodes pb WHERE pb.product_id = p.id AND pb.is_primary = 1 LIMIT 1) as barcode,
-                        sm.movement_type, sm.quantity, sm.unit_price_kurus, sm.note, sm.created_at
+                        sm.movement_type, sm.quantity, sm.unit_price_kurus, sm.note, REPLACE(sm.created_at, ' ', 'T') || 'Z' as created_at
                  FROM stock_movements sm
                  JOIN products p ON sm.product_id = p.id
                  ORDER BY sm.id DESC
@@ -2002,7 +2002,7 @@ pub fn get_stock_movements(product_id: Option<i64>, limit: Option<i64>) -> Resul
     Ok(results)
 }
 
-// --- PHASE 7: BASİT ALIŞ VE TEDARİK YÖNETİMİ ---
+// --- PHASE 7: BASÄ°T ALIÅ VE TEDARÄ°K YÃ–NETÄ°MÄ° ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SupplierDto {
@@ -2064,7 +2064,7 @@ pub fn list_suppliers(search: Option<String>) -> Result<Vec<SupplierDto>, String
 #[tauri::command]
 pub fn create_supplier(name: String, phone: Option<String>, note: Option<String>) -> Result<i64, String> {
     if name.trim().is_empty() {
-        return Err("Tedarikçi adı boş olamaz.".to_string());
+        return Err("TedarikÃ§i adÄ± boÅŸ olamaz.".to_string());
     }
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
@@ -2080,7 +2080,7 @@ pub fn create_supplier(name: String, phone: Option<String>, note: Option<String>
 #[tauri::command]
 pub fn update_supplier(id: i64, name: String, phone: Option<String>, note: Option<String>) -> Result<(), String> {
     if name.trim().is_empty() {
-        return Err("Tedarikçi adı boş olamaz.".to_string());
+        return Err("TedarikÃ§i adÄ± boÅŸ olamaz.".to_string());
     }
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
@@ -2096,15 +2096,15 @@ pub fn update_supplier(id: i64, name: String, phone: Option<String>, note: Optio
 #[tauri::command]
 pub fn process_purchase_invoice(input: ProcessPurchaseInput) -> Result<(), String> {
     if input.items.is_empty() {
-        return Err("Alış faturasında en az bir ürün olmalıdır.".to_string());
+        return Err("AlÄ±ÅŸ faturasÄ±nda en az bir Ã¼rÃ¼n olmalÄ±dÄ±r.".to_string());
     }
 
     for item in &input.items {
         if item.quantity <= 0.0 {
-            return Err("Miktar sıfırdan büyük olmalıdır.".to_string());
+            return Err("Miktar sÄ±fÄ±rdan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
         }
         if item.unit_cost_kurus < 0 {
-            return Err("Alış fiyatı negatif olamaz.".to_string());
+            return Err("AlÄ±ÅŸ fiyatÄ± negatif olamaz.".to_string());
         }
     }
 
@@ -2119,8 +2119,8 @@ pub fn process_purchase_invoice(input: ProcessPurchaseInput) -> Result<(), Strin
             "SELECT name FROM suppliers WHERE id = ?",
             params![sid],
             |row| row.get(0),
-        ).unwrap_or_else(|_| "Tedarikçi".to_string()),
-        None => "Genel Tedarikçi".to_string(),
+        ).unwrap_or_else(|_| "TedarikÃ§i".to_string()),
+        None => "Genel TedarikÃ§i".to_string(),
     };
 
     for item in &input.items {
@@ -2133,20 +2133,20 @@ pub fn process_purchase_invoice(input: ProcessPurchaseInput) -> Result<(), Strin
              VALUES (?, 1, ?)
              ON CONFLICT(product_id, warehouse_id) DO UPDATE SET quantity = quantity + excluded.quantity",
             params![item.product_id, item.quantity],
-        ).map_err(|e| format!("Stok güncellenemedi: {}", e))?;
+        ).map_err(|e| format!("Stok gÃ¼ncellenemedi: {}", e))?;
 
         // 2. Insert stock movement
         tx.execute(
             "INSERT INTO stock_movements (product_id, warehouse_id, movement_type, quantity, unit_price_kurus, reference_type, note, user_id)
              VALUES (?, 1, 'ALIS', ?, ?, 'PURCHASE', ?, 1)",
-            params![item.product_id, item.quantity, item.unit_cost_kurus, format!("Mal Alımı - {}", supplier_name)],
+            params![item.product_id, item.quantity, item.unit_cost_kurus, format!("Mal AlÄ±mÄ± - {}", supplier_name)],
         ).map_err(|e| format!("Stok hareketi kaydedilemedi: {}", e))?;
 
         // 3. Update product cost price
         tx.execute(
             "UPDATE products SET cost_price_kurus = ? WHERE id = ?",
             params![item.unit_cost_kurus, item.product_id],
-        ).map_err(|e| format!("Ürün alış fiyatı güncellenemedi: {}", e))?;
+        ).map_err(|e| format!("ÃœrÃ¼n alÄ±ÅŸ fiyatÄ± gÃ¼ncellenemedi: {}", e))?;
     }
 
     // 4. Payment processing
@@ -2159,27 +2159,27 @@ pub fn process_purchase_invoice(input: ProcessPurchaseInput) -> Result<(), Strin
         ).unwrap_or(false);
 
         if !is_open {
-            return Err("Peşin mal alımı için kasa açık olmalıdır.".to_string());
+            return Err("PeÅŸin mal alÄ±mÄ± iÃ§in kasa aÃ§Ä±k olmalÄ±dÄ±r.".to_string());
         }
 
         // Deduct from cash register
         tx.execute(
             "UPDATE cash_registers SET current_balance_kurus = current_balance_kurus - ? WHERE id = ?",
             params![total_purchase_kurus, cash_reg_id],
-        ).map_err(|e| format!("Kasa bakiyesi güncellenemedi: {}", e))?;
+        ).map_err(|e| format!("Kasa bakiyesi gÃ¼ncellenemedi: {}", e))?;
 
         // Add cash movement
         tx.execute(
             "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, supplier_id, user_id, note)
              VALUES (?, 'TEDARIKCI_ODEME', ?, ?, 1, ?)",
-            params![cash_reg_id, -total_purchase_kurus, input.supplier_id, format!("Peşin Mal Alımı - {}", supplier_name)],
+            params![cash_reg_id, -total_purchase_kurus, input.supplier_id, format!("PeÅŸin Mal AlÄ±mÄ± - {}", supplier_name)],
         ).map_err(|e| format!("Kasa hareketi kaydedilemedi: {}", e))?;
     } else if input.payment_type == "VERESIYE" {
         if let Some(sid) = input.supplier_id {
             tx.execute(
                 "UPDATE suppliers SET balance_kurus = balance_kurus + ? WHERE id = ?",
                 params![total_purchase_kurus, sid],
-            ).map_err(|e| format!("Tedarikçi bakiyesi güncellenemedi: {}", e))?;
+            ).map_err(|e| format!("TedarikÃ§i bakiyesi gÃ¼ncellenemedi: {}", e))?;
         }
     }
 
@@ -2190,7 +2190,7 @@ pub fn process_purchase_invoice(input: ProcessPurchaseInput) -> Result<(), Strin
 #[tauri::command]
 pub fn pay_supplier(supplier_id: i64, amount_kurus: i64, cash_register_id: i64, note: Option<String>) -> Result<(), String> {
     if amount_kurus <= 0 {
-        return Err("Ödeme tutarı sıfırdan büyük olmalıdır.".to_string());
+        return Err("Ã–deme tutarÄ± sÄ±fÄ±rdan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
     }
 
     let db = get_db_manager();
@@ -2204,14 +2204,14 @@ pub fn pay_supplier(supplier_id: i64, amount_kurus: i64, cash_register_id: i64, 
     ).unwrap_or(false);
 
     if !is_open {
-        return Err("Kasa kapalı. Tedarikçi ödemesi yapılamaz.".to_string());
+        return Err("Kasa kapalÄ±. TedarikÃ§i Ã¶demesi yapÄ±lamaz.".to_string());
     }
 
     let supplier_name: String = tx.query_row(
         "SELECT name FROM suppliers WHERE id = ?",
         params![supplier_id],
         |row| row.get(0),
-    ).map_err(|_| "Tedarikçi bulunamadı.".to_string())?;
+    ).map_err(|_| "TedarikÃ§i bulunamadÄ±.".to_string())?;
 
     // Reduce supplier debt balance
     tx.execute(
@@ -2225,7 +2225,7 @@ pub fn pay_supplier(supplier_id: i64, amount_kurus: i64, cash_register_id: i64, 
         params![amount_kurus, cash_register_id],
     ).map_err(|e| e.to_string())?;
 
-    let note_text = note.unwrap_or_else(|| format!("Tedarikçi Ödemesi - {}", supplier_name));
+    let note_text = note.unwrap_or_else(|| format!("TedarikÃ§i Ã–demesi - {}", supplier_name));
 
     // Record cash movement
     tx.execute(
@@ -2238,7 +2238,7 @@ pub fn pay_supplier(supplier_id: i64, amount_kurus: i64, cash_register_id: i64, 
     Ok(())
 }
 
-// --- PHASE 8: AYARLAR VE VERİTABANI YEDEKLEME ---
+// --- PHASE 8: AYARLAR VE VERÄ°TABANI YEDEKLEME ---
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettingsDto {
@@ -2274,10 +2274,10 @@ pub fn get_app_settings() -> Result<AppSettingsDto, String> {
     }
 
     Ok(AppSettingsDto {
-        business_name: map.get("business_name").cloned().unwrap_or_else(|| "Büfe Otomasyonu".to_string()),
+        business_name: map.get("business_name").cloned().unwrap_or_else(|| "BÃ¼fe Otomasyonu".to_string()),
         phone: map.get("phone").cloned().unwrap_or_default(),
         address: map.get("address").cloned().unwrap_or_default(),
-        receipt_footer: map.get("receipt_footer").cloned().unwrap_or_else(|| "Teşekkür Ederiz Yine Bekleriz".to_string()),
+        receipt_footer: map.get("receipt_footer").cloned().unwrap_or_else(|| "TeÅŸekkÃ¼r Ederiz Yine Bekleriz".to_string()),
         default_vat_rate: map.get("default_vat_rate").and_then(|v| v.parse().ok()).unwrap_or(20.0),
     })
 }
@@ -2288,11 +2288,11 @@ pub fn update_app_settings(settings: AppSettingsDto) -> Result<(), String> {
     let conn = db.get_connection().map_err(|e| e.to_string())?;
 
     let entries = [
-        ("business_name", settings.business_name, "İşletme Adı"),
-        ("phone", settings.phone, "Telefon Numarası"),
-        ("address", settings.address, "İşletme Adresi"),
-        ("receipt_footer", settings.receipt_footer, "Fiş Alt Mesajı"),
-        ("default_vat_rate", settings.default_vat_rate.to_string(), "Varsayılan KDV Oranı"),
+        ("business_name", settings.business_name, "Ä°ÅŸletme AdÄ±"),
+        ("phone", settings.phone, "Telefon NumarasÄ±"),
+        ("address", settings.address, "Ä°ÅŸletme Adresi"),
+        ("receipt_footer", settings.receipt_footer, "FiÅŸ Alt MesajÄ±"),
+        ("default_vat_rate", settings.default_vat_rate.to_string(), "VarsayÄ±lan KDV OranÄ±"),
     ];
 
     for (k, v, desc) in entries {
@@ -2316,7 +2316,7 @@ pub fn backup_database(destination_path: Option<String>) -> Result<BackupResultD
 
     let source_path = db.get_db_path();
     if !source_path.exists() {
-        return Err("Veritabanı dosyası bulunamadı.".to_string());
+        return Err("VeritabanÄ± dosyasÄ± bulunamadÄ±.".to_string());
     }
 
     let target_path = match destination_path {
@@ -2341,7 +2341,7 @@ pub fn backup_database(destination_path: Option<String>) -> Result<BackupResultD
     }
 
     std::fs::copy(&source_path, &target_path)
-        .map_err(|e| format!("Yedekleme kopyalanırken hata: {}", e))?;
+        .map_err(|e| format!("Yedekleme kopyalanÄ±rken hata: {}", e))?;
 
     let size = std::fs::metadata(&target_path)
         .map(|m| m.len())
@@ -2375,7 +2375,7 @@ mod tests {
         // 1. Create Category
         let res = conn.execute(
             "INSERT INTO categories (name, sort_order, color_code, is_active) VALUES (?, ?, ?, 1)",
-            params!["Sıcak İçecekler", 1, "#EF4444"],
+            params!["SÄ±cak Ä°Ã§ecekler", 1, "#EF4444"],
         );
         assert!(res.is_ok());
         let cat_id = conn.last_insert_rowid();
@@ -2384,7 +2384,7 @@ mod tests {
         let prod_res = conn.execute(
             "INSERT INTO products (code, name, category_id, unit_name, cost_price_kurus, sale_price_kurus, vat_rate, min_stock_level, is_active, track_skt)
              VALUES (?, ?, ?, 'Adet', 200, 1000, 20.0, 5.0, 1, 0)",
-            params!["TST-001", "Demlik Çay", cat_id],
+            params!["TST-001", "Demlik Ã‡ay", cat_id],
         );
         assert!(prod_res.is_ok());
 
@@ -2602,7 +2602,7 @@ pub fn get_user_hash(username: String) -> Result<String, String> {
     
     match hash {
         Some(h) => Ok(h),
-        None => Err("Kullanıcı bulunamadı veya pasif.".to_string()),
+        None => Err("KullanÄ±cÄ± bulunamadÄ± veya pasif.".to_string()),
     }
 }
 
@@ -2621,11 +2621,11 @@ pub fn change_user_password(username: String, current_password: String, new_pass
 
     let stored_hash = match hash {
         Some(h) => h,
-        None => return Err("Kullanıcı bulunamadı.".to_string()),
+        None => return Err("KullanÄ±cÄ± bulunamadÄ±.".to_string()),
     };
 
     if !crate::security::SecurityManager::verify_password(&current_password, &stored_hash).unwrap_or(false) {
-        return Err("Mevcut parola yanlış.".to_string());
+        return Err("Mevcut parola yanlÄ±ÅŸ.".to_string());
     }
 
     let new_hash = crate::security::SecurityManager::hash_password(&new_password).map_err(|e| e.to_string())?;
@@ -2642,6 +2642,6 @@ pub fn change_user_password(username: String, current_password: String, new_pass
 
 #[tauri::command]
 pub fn log_message(msg: String) -> Result<(), String> {
-    let _ = std::fs::write("C:\\Users\\Ali Altın\\Desktop\\bufe-pos\\debug.txt", msg);
+    let _ = std::fs::write("C:\\Users\\Ali AltÄ±n\\Desktop\\bufe-pos\\debug.txt", msg);
     Ok(())
 }
