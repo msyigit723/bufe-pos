@@ -51,7 +51,7 @@ export class SaleService {
   static async processSale(payload: ProcessSaleInput): Promise<SaleResultDto> {
     try {
       Logger.info('Satış işlemi başlatılıyor', payload);
-      const result = await invoke<SaleResultDto>('process_sale', { payload });
+      const result = await invoke<SaleResultDto>('process_sale', { input: payload });
       return result;
     } catch (error) {
       Logger.error('Satış işlemi başarısız', error);

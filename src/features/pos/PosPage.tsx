@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { TableSelectionModal } from './components/TableSelectionModal';
 import { PosCartTable } from './components/PosCartTable';
 import { QuickProductsGrid } from './components/QuickProductsGrid';
 import { PosSummaryBar } from './components/PosSummaryBar';
@@ -17,19 +19,21 @@ export const PosPage: React.FC = () => {
   const store = usePosStore();
   const [showPayment, setShowPayment] = useState(false);
   const [showParked, setShowParked] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
   const [showQDModal, setShowQDModal] = useState<'quantity' | 'discount' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Keep focus on barcode input when not interacting with modals
     const focusInterval = setInterval(() => {
-      if (!showPayment && !showParked && !showQDModal && !store.lastSaleResult) {
+      if (!showPayment && !showParked && !showTableModal && !showQDModal && !store.lastSaleResult) {
         barcodeInputRef.current?.focus();
       }
     }, 1000);
     return () => clearInterval(focusInterval);
-  }, [showPayment, showParked, showQDModal, store.lastSaleResult]);
+  }, [showPayment, showParked, showTableModal, showQDModal, store.lastSaleResult]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,7 +46,7 @@ export const PosPage: React.FC = () => {
           if (store.items.length > 0 && !showPayment) setShowPayment(true);
           break;
         case ' ':
-          if (!showPayment && !showParked && !showQDModal && !store.lastSaleResult && e.target === barcodeInputRef.current) {
+          if (!showPayment && !showParked && !showTableModal && !showQDModal && !store.lastSaleResult && e.target === barcodeInputRef.current) {
              if (barcodeInputRef.current && barcodeInputRef.current.value === '' && store.items.length > 0) {
                e.preventDefault();
                setShowPayment(true);
@@ -59,7 +63,7 @@ export const PosPage: React.FC = () => {
           break;
         case 'F9':
           e.preventDefault();
-          store.parkCart();
+          if (store.items.length > 0) setShowTableModal(true);
           break;
         case 'F10':
           e.preventDefault();
@@ -73,6 +77,7 @@ export const PosPage: React.FC = () => {
         case 'Escape':
           if (showPayment) setShowPayment(false);
           else if (showParked) setShowParked(false);
+          else if (showTableModal) setShowTableModal(false);
           else if (showQDModal) setShowQDModal(null);
           else if (store.lastSaleResult) store.setLastSaleResult(null);
           else store.clearCart();
@@ -87,7 +92,7 @@ export const PosPage: React.FC = () => {
           break;
         case 'Enter':
           // Handle barcode scanner enter
-          if (!showPayment && !showParked && !showQDModal && !store.lastSaleResult) {
+          if (!showPayment && !showParked && !showTableModal && !showQDModal && !store.lastSaleResult) {
             const val = barcodeInputRef.current?.value.trim();
             if (val) handleBarcodeScan(val);
           }
@@ -99,6 +104,7 @@ export const PosPage: React.FC = () => {
   }, [store, showPayment, showParked, showQDModal]);
 
   const handleBarcodeScan = async (barcode: string) => {
+    setSearchQuery('');
     if (barcodeInputRef.current) barcodeInputRef.current.value = '';
     try {
       store.setErrorMessage(null);
@@ -167,6 +173,15 @@ export const PosPage: React.FC = () => {
       };
       
       store.setLastSaleResult(result);
+      
+      if (store.activeTableId) {
+        try {
+          await invoke('clear_table', { tableId: store.activeTableId });
+        } catch (e) {
+          console.error('Failed to clear table:', e);
+        }
+      }
+      
       store.clearCart();
       setShowPayment(false);
     } catch (error: any) {
@@ -209,13 +224,21 @@ export const PosPage: React.FC = () => {
               placeholder="Barkod okutun veya arayın..."
               className="w-full p-4 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors shadow-inner"
               autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex-1 bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
+          <div className="flex-1 bg-slate-900 rounded-lg border border-slate-700 overflow-hidden flex flex-col">
             <div className="p-3 border-b border-slate-700 bg-slate-800 text-sm font-semibold text-slate-300">
               Hızlı Ürünler
             </div>
-            <QuickProductsGrid onAddProduct={handleQuickProductAdd} />
+            <div className="flex-1 overflow-hidden">
+              <QuickProductsGrid onAddProduct={(p) => {
+                handleQuickProductAdd(p);
+                setSearchQuery('');
+                barcodeInputRef.current?.focus();
+              }} searchQuery={searchQuery} />
+            </div>
           </div>
         </div>
 
@@ -224,7 +247,7 @@ export const PosPage: React.FC = () => {
           <PosCartTable />
           <PosSummaryBar 
             onPayment={() => setShowPayment(true)} 
-            onPark={() => store.parkCart()} 
+            onTableAdd={() => setShowTableModal(true)} 
           />
         </div>
       </div>
@@ -241,6 +264,13 @@ export const PosPage: React.FC = () => {
         <ReceiptModal 
           sale={store.lastSaleResult}
           onClose={() => store.setLastSaleResult(null)}
+        />
+      )}
+
+      {showTableModal && (
+        <TableSelectionModal 
+          onClose={() => setShowTableModal(false)} 
+          onSuccess={() => setShowTableModal(false)}
         />
       )}
 

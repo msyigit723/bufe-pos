@@ -29,6 +29,7 @@ interface PosState {
   barcodeBuffer: string;
   lastBarcodeTime: number;
   errorMessage: string | null;
+  activeTableId: number | null;
   
   // Cart actions
   addProductToCart: (product: any, barcode?: string, quantity?: number) => void;
@@ -37,6 +38,7 @@ interface PosState {
   removeCartItem: (productId: number) => void;
   clearCart: () => void;
   setSelectedItemIndex: (index: number) => void;
+  setActiveTableId: (id: number | null) => void;
   
   // Park actions
   parkCart: () => void;
@@ -63,6 +65,9 @@ export const usePosStore = create<PosState>((set, get) => ({
   barcodeBuffer: '',
   lastBarcodeTime: 0,
   errorMessage: null,
+  activeTableId: null,
+
+  setActiveTableId: (id) => set({ activeTableId: id }),
 
   addProductToCart: (product, barcode, quantity = 1) => {
     set((state) => {
@@ -121,7 +126,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ items: [], selectedItemIndex: -1, errorMessage: null });
+    set({ items: [], selectedItemIndex: -1, errorMessage: null, activeTableId: null });
   },
 
   setSelectedItemIndex: (index) => {

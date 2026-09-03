@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Money } from '../../../domain/value-objects/Money';
-import type { PaymentType } from '../../../domain/value-objects/Payment';
-import { PaymentTypeLabels } from '../../../domain/value-objects/Payment';
-import { CustomerService } from '../../../application/services/CustomerService';
-import type { CustomerDto } from '../../../application/services/CustomerService';
+import { type PaymentType, PaymentTypeLabels } from '../../../domain/value-objects/Payment';
 
 interface PaymentModalProps {
   totalKurus: number;
-  onConfirm: (paymentType: PaymentType, amountKurus: number, customerId: number | null) => Promise<void>;
+  onConfirm: (type: PaymentType, tenderedKurus: number, customerId: number | null) => Promise<void>;
   onClose: () => void;
 }
 
@@ -16,11 +13,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalKurus, onConfir
   const [tenderedKurus, setTenderedKurus] = useState<number>(totalKurus);
   const [tenderedInput, setTenderedInput] = useState<string>(Money.fromKurus(totalKurus).toLira().toString());
   const [isPending, setIsPending] = useState(false);
-
-  // Phase 5: Customer selection for veresiye
-  const [customers, setCustomers] = useState<CustomerDto[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
-  const [customerSearch, setCustomerSearch] = useState('');
 
   useEffect(() => {
     if (activeTab === 'NAKIT') {
@@ -32,13 +24,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalKurus, onConfir
     }
   }, [tenderedInput, activeTab, totalKurus]);
 
-  // Load customers when veresiye selected
-  useEffect(() => {
-    if (activeTab === 'CARI_VERESIYE') {
-      CustomerService.listCustomers(customerSearch || null).then(setCustomers).catch(() => {});
-    }
-  }, [activeTab, customerSearch]);
-
   const handleQuickCash = (amountTl: number) => {
     setTenderedInput(amountTl.toString());
   };
@@ -48,13 +33,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalKurus, onConfir
       alert('Nakit ödemede alınan tutar, toplam tutardan küçük olamaz.');
       return;
     }
-    if (activeTab === 'CARI_VERESIYE' && !selectedCustomerId) {
-      alert('Veresiye satış için müşteri seçiniz.');
-      return;
-    }
     try {
       setIsPending(true);
-      await onConfirm(activeTab, tenderedKurus, activeTab === 'CARI_VERESIYE' ? selectedCustomerId : null);
+      await onConfirm(activeTab, tenderedKurus, null);
     } finally {
       setIsPending(false);
     }
@@ -76,7 +57,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalKurus, onConfir
             {(Object.keys(PaymentTypeLabels) as PaymentType[]).map((type) => (
               <button
                 key={type}
-                onClick={() => { setActiveTab(type); setSelectedCustomerId(null); }}
+                onClick={() => setActiveTab(type)}
                 className={`p-4 text-left rounded-lg font-semibold transition-colors ${
                   activeTab === type 
                     ? 'bg-emerald-600 text-white shadow-lg' 
@@ -125,49 +106,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalKurus, onConfir
                 </div>
               </div>
             )}
-
-            {activeTab === 'CARI_VERESIYE' && (
-              <div className="flex-1 space-y-3">
-                <div>
-                  <label className="block text-sm text-slate-400 mb-1">Müşteri Ara</label>
-                  <input
-                    type="text" placeholder="Ad veya telefon..."
-                    className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm"
-                    value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} autoFocus
-                  />
-                </div>
-                <div className="max-h-48 overflow-auto space-y-1">
-                  {customers.length === 0 ? (
-                    <div className="text-slate-500 text-center py-4 text-sm">Müşteri bulunamadı.</div>
-                  ) : (
-                    customers.map(c => (
-                      <button key={c.id}
-                        onClick={() => setSelectedCustomerId(c.id)}
-                        className={`w-full text-left p-3 rounded transition-colors flex justify-between items-center ${
-                          selectedCustomerId === c.id 
-                            ? 'bg-emerald-700 text-white' 
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        }`}>
-                        <div>
-                          <div className="font-semibold">{c.name}</div>
-                          <div className="text-xs text-slate-400">{c.phone || '-'}</div>
-                        </div>
-                        <div className={`text-sm font-bold ${c.balance_kurus > 0 ? 'text-rose-400' : 'text-slate-400'}`}>
-                          {c.balance_kurus > 0 ? `Borç: ${Money.fromKurus(c.balance_kurus).formatTL()}` : 'Borç yok'}
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-                {selectedCustomerId && (
-                  <div className="text-sm text-emerald-400 font-semibold mt-2">
-                    ✓ Müşteri seçildi
-                  </div>
-                )}
-              </div>
-            )}
             
-            {activeTab !== 'NAKIT' && activeTab !== 'CARI_VERESIYE' && (
+            {activeTab !== 'NAKIT' && (
               <div className="flex-1 flex items-center justify-center text-slate-400 p-8 text-center">
                 {PaymentTypeLabels[activeTab]} seçildi. Tutar tam olarak çekilecektir.
               </div>

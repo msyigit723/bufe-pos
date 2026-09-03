@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { HealthCheckResponse } from "../application/services/DatabaseService";
 
-export type NavTab = "pos" | "products" | "inventory" | "purchases" | "customers" | "cash" | "reports" | "settings" | "tables";
+export type NavTab = "pos" | "products" | "cash" | "reports" | "settings" | "tables" | "inventory";
 
 interface AppState {
   currentTab: NavTab;

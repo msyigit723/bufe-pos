@@ -1139,7 +1139,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
     let user_id = 1; // Default admin
     let warehouse_id = 1;
     let cash_register_id = input.cash_register_id.unwrap_or(1);
-    let payment_status = "ODENDI";
+    let payment_status = "PAID";
 
     // Insert sale
     tx.execute(
@@ -1173,7 +1173,7 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         tx.execute(
             "INSERT INTO stock (product_id, warehouse_id, quantity) 
              VALUES (?, ?, ?) 
-             ON CONFLICT(product_id, warehouse_id) DO UPDATE SET quantity = quantity - excluded.quantity",
+             ON CONFLICT(product_id, warehouse_id) DO UPDATE SET quantity = quantity + excluded.quantity",
             params![item.product_id, warehouse_id, -item.quantity],
         ).map_err(|e| format!("Stok güncellenemedi: {}", e))?;
 
@@ -1227,9 +1227,9 @@ pub fn process_sale(input: ProcessSaleInput) -> Result<SaleResultDto, String> {
         ).map_err(|e| format!("Kasa bakiyesi güncellenemedi: {}", e))?;
 
         tx.execute(
-            "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, sale_id)
-             VALUES (?, 'SATIS_TAHSILAT', ?, ?)",
-            params![cash_register_id, nakit_amount, sale_id],
+            "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, sale_id, user_id)
+             VALUES (?, 'SATIS_TAHSILAT', ?, ?, ?)",
+            params![cash_register_id, nakit_amount, sale_id, user_id],
         ).map_err(|e| format!("Kasa hareketi kaydedilemedi: {}", e))?;
     }
 

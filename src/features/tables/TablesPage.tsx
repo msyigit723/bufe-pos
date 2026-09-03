@@ -74,6 +74,8 @@ export const TablesPage: React.FC = () => {
     
     // Transfer items to POS store
     clearCart();
+    usePosStore.getState().setActiveTableId(selectedTable.id);
+    
     orders.forEach(o => {
       // Mocking full product info for cart
       addProductToCart({
@@ -90,11 +92,7 @@ export const TablesPage: React.FC = () => {
       usePosStore.getState().updateItemQuantity(o.product_id, o.quantity);
     });
 
-    // Clear table
-    invoke('clear_table', { tableId: selectedTable.id }).then(() => {
-      loadTables();
-      setCurrentTab('pos');
-    });
+    setCurrentTab('pos');
   };
 
   return (

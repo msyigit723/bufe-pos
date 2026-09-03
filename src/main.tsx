@@ -27,10 +27,23 @@ class ErrorBoundary extends React.Component<any, any> {
 
 invoke('run_migrations').then(() => invoke('log_message', {msg: "main.tsx migrations ok!"})).catch(e => invoke('log_message', {msg: "main.tsx migration err: " + e.toString()}));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

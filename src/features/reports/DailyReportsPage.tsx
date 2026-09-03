@@ -7,23 +7,28 @@ export const DailyReportsPage: React.FC = () => {
   const [summary, setSummary] = useState<DailySalesSummaryDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const getLocalSqlDateString = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
   // Default to today
   const [startDateStr, setStartDateStr] = useState(() => {
     const d = new Date();
     d.setHours(0,0,0,0);
-    return d.toISOString().slice(0, 19).replace('T', ' ');
+    return getLocalSqlDateString(d);
   });
 
   const [endDateStr, setEndDateStr] = useState(() => {
     const d = new Date();
     d.setHours(23,59,59,999);
-    return d.toISOString().slice(0, 19).replace('T', ' ');
+    return getLocalSqlDateString(d);
   });
 
-  const fetchReport = async () => {
+  const fetchReport = async (start?: string, end?: string) => {
     setIsLoading(true);
     try {
-      const data = await ReportService.getDailySalesSummary(startDateStr, endDateStr);
+      const data = await ReportService.getDailySalesSummary(start || startDateStr, end || endDateStr);
       setSummary(data);
     } catch (e: any) {
       alert(e.message);
@@ -45,8 +50,12 @@ export const DailyReportsPage: React.FC = () => {
     const dEnd = new Date(dStart);
     dEnd.setHours(23,59,59,999);
     
-    setStartDateStr(dStart.toISOString().slice(0, 19).replace('T', ' '));
-    setEndDateStr(dEnd.toISOString().slice(0, 19).replace('T', ' '));
+    const sStr = getLocalSqlDateString(dStart);
+    const eStr = getLocalSqlDateString(dEnd);
+    setStartDateStr(sStr);
+    setEndDateStr(eStr);
+    
+    fetchReport(sStr, eStr);
   };
 
   return (
@@ -56,7 +65,7 @@ export const DailyReportsPage: React.FC = () => {
         <div className="flex space-x-2">
           <button onClick={() => setPreset(0)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm">Bugün</button>
           <button onClick={() => setPreset(-1)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-sm">Dün</button>
-          <button onClick={fetchReport} className="px-4 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold ml-2">Getir</button>
+          <button onClick={() => fetchReport()} className="px-4 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold ml-2">Getir</button>
         </div>
       </div>
 

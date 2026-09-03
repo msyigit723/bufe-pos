@@ -6,14 +6,14 @@ import { PauseCircle, Trash2, CreditCard } from 'lucide-react';
 
 interface PosSummaryBarProps {
   onPayment: () => void;
-  onPark: () => void;
+  onTableAdd: () => void;
 }
 
-export const PosSummaryBar: React.FC<PosSummaryBarProps> = ({ onPayment, onPark }) => {
+export const PosSummaryBar: React.FC<PosSummaryBarProps> = ({ onPayment, onTableAdd }) => {
   const { items, clearCart } = usePosStore();
 
   const subtotal = items.reduce((sum, item) => sum + Cart.lineTotal(item), 0);
-  const grandTotal = subtotal; // Assuming lineTotal already subtracts discount, we can just use subtotal as grand total for this setup.
+  const grandTotal = subtotal;
 
   return (
     <div className="bg-slate-900 border-t border-slate-700 p-4 m-2 rounded-lg flex justify-between items-center">
@@ -26,11 +26,11 @@ export const PosSummaryBar: React.FC<PosSummaryBarProps> = ({ onPayment, onPark 
           Temizle (ESC)
         </button>
         <button 
-          onClick={onPark}
-          className="flex items-center px-4 py-2 bg-slate-800 text-yellow-400 rounded hover:bg-slate-700"
+          onClick={onTableAdd}
+          className="flex items-center px-4 py-2 bg-slate-800 text-blue-400 rounded hover:bg-slate-700 font-bold"
         >
           <PauseCircle size={18} className="mr-2" />
-          Beklet (F9)
+          Masaya Ekle (F9)
         </button>
       </div>
 

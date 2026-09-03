@@ -1,4 +1,5 @@
 
+#[path = "../security/mod.rs"] mod security;
 use rusqlite::{Connection, Result};
 fn main() -> Result<()> {
     let app_dir = dirs::data_local_dir().unwrap().join("BufePOS");
@@ -10,7 +11,15 @@ fn main() -> Result<()> {
     })?;
     for user in user_iter {
         let (id, un, hash, active) = user.unwrap();
-        println!("ID: {}, User: {}, Hash: {}, Active: {}", id, un, hash, active);
+        println!("ID: {}, User: {}, Active: {}", id, un, active);
+        println!("  Hash from DB: {}", hash);
+        if un == "admin" {
+            let valid = security::SecurityManager::verify_password("ZeryamAdmin2026", &hash).unwrap_or(false);
+            println!("  ZeryamAdmin2026 verified: {}", valid);
+        } else if un == "personel" {
+            let valid = security::SecurityManager::verify_password("ZeryamStaff2026", &hash).unwrap_or(false);
+            println!("  ZeryamStaff2026 verified: {}", valid);
+        }
     }
     Ok(())
 }

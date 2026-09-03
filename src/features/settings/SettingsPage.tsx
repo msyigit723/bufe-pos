@@ -72,7 +72,7 @@ export const SettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 h-full overflow-y-auto max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <h1 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2">

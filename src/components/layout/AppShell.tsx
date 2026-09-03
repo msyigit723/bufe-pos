@@ -2,9 +2,6 @@ import React, { useEffect, useCallback } from "react";
 import {
   ShoppingCart,
   Package,
-  Boxes,
-  Truck,
-  Users,
   Wallet,
   BarChart3,
   Settings,
@@ -13,7 +10,7 @@ import {
   ShieldCheck,
   Cpu,
   RefreshCw,
-  Coffee,
+  Coffee
 } from "lucide-react";
 import type { NavTab } from "../../stores/useAppStore";
 import { useAppStore } from "../../stores/useAppStore";
@@ -23,11 +20,9 @@ import { ProductsPage } from "../../features/products/ProductsPage";
 import { PosPage } from "../../features/pos/PosPage";
 import { CashRegisterPage } from "../../features/cash/CashRegisterPage";
 import { DailyReportsPage } from "../../features/reports/DailyReportsPage";
-import { CustomersPage } from "../../features/customers/CustomersPage";
-import { InventoryPage } from "../../features/inventory/InventoryPage";
-import { PurchasesPage } from "../../features/purchases/PurchasesPage";
 import { SettingsPage } from "../../features/settings/SettingsPage";
 import { TablesPage } from "../../features/tables/TablesPage";
+import { InventoryPage } from "../../features/inventory/InventoryPage";
 
 export const AppShell: React.FC = () => {
   const { currentTab, setCurrentTab, systemStatus, setSystemStatus, activeCashierName } =
@@ -69,15 +64,12 @@ export const AppShell: React.FC = () => {
       } else if (e.key === "F5") {
         e.preventDefault();
         setCurrentTab("inventory");
-      } else if (e.key === "F6") {
-        e.preventDefault();
-        setCurrentTab("customers");
-      } else if (e.key === "F7") {
-        e.preventDefault();
-        setCurrentTab("purchases");
       } else if (e.key === "F8") {
         e.preventDefault();
         setCurrentTab("settings");
+      } else if (e.key === "F9") {
+        e.preventDefault();
+        setCurrentTab("tables");
       }
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -88,9 +80,7 @@ export const AppShell: React.FC = () => {
     { id: "pos", label: "POS Satış", icon: <ShoppingCart className="w-5 h-5" />, shortcut: "F1", roles: ["ADMIN", "CASHIER"] },
     { id: "tables", label: "Masalar", icon: <Coffee className="w-5 h-5" />, shortcut: "F9", roles: ["ADMIN", "CASHIER"] },
     { id: "products", label: "Ürünler", icon: <Package className="w-5 h-5" />, shortcut: "F2", roles: ["ADMIN"] },
-    { id: "inventory", label: "Stok", icon: <Boxes className="w-5 h-5" />, shortcut: "F5", roles: ["ADMIN", "INVENTORY"] },
-    { id: "purchases", label: "Alış", icon: <Truck className="w-5 h-5" />, shortcut: "F7", roles: ["ADMIN"] },
-    { id: "customers", label: "Cari", icon: <Users className="w-5 h-5" />, shortcut: "F6", roles: ["ADMIN"] },
+    { id: "inventory", label: "Stoklar", icon: <Package className="w-5 h-5" />, shortcut: "F5", roles: ["ADMIN"] },
     { id: "cash", label: "Kasa", icon: <Wallet className="w-5 h-5" />, shortcut: "F3", roles: ["ADMIN", "CASHIER"] },
     { id: "reports", label: "Raporlar", icon: <BarChart3 className="w-5 h-5" />, shortcut: "F4", roles: ["ADMIN"] },
     { id: "settings", label: "Ayarlar", icon: <Settings className="w-5 h-5" />, shortcut: "F8", roles: ["ADMIN"] },
@@ -173,10 +163,6 @@ export const AppShell: React.FC = () => {
           <ProductsPage />
         ) : currentTab === "inventory" ? (
           <InventoryPage />
-        ) : currentTab === "purchases" ? (
-          <PurchasesPage />
-        ) : currentTab === "customers" ? (
-          <CustomersPage />
         ) : currentTab === "cash" ? (
           <CashRegisterPage />
         ) : currentTab === "reports" ? (
