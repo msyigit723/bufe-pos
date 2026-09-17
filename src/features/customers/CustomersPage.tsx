@@ -12,6 +12,7 @@ export const CustomersPage: React.FC = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDto | null>(null);
   const [tahsilatCustomer, setTahsilatCustomer] = useState<CustomerDto | null>(null);
+  const [tahsilatType, setTahsilatType] = useState<string>('NAKIT');
   const [historyCustomer, setHistoryCustomer] = useState<CustomerDto | null>(null);
   const [history, setHistory] = useState<CustomerHistoryDto[]>([]);
 
@@ -61,7 +62,8 @@ export const CustomersPage: React.FC = () => {
     const kurus = Math.round(parseFloat(tahsilatAmount.replace(',', '.')) * 100) || 0;
     if (kurus <= 0) return alert('Geçerli bir tutar giriniz.');
     try {
-      await CustomerService.receiveCustomerPayment(tahsilatCustomer.id, kurus, 1);
+      // Assuming cash for now, or we can add a selector in the modal
+      await CustomerService.receivePayment(tahsilatCustomer.id, kurus, tahsilatType, 1);
       setTahsilatCustomer(null);
       setTahsilatAmount('');
       loadCustomers();
@@ -184,7 +186,18 @@ export const CustomersPage: React.FC = () => {
               <input type="number" step="0.01" className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-lg"
                 value={tahsilatAmount} onChange={(e) => setTahsilatAmount(e.target.value)} autoFocus />
             </div>
-            <div className="flex space-x-2">
+            <div className="mb-4">
+              <label className="block text-sm text-slate-400 mb-1">Tahsilat Tipi</label>
+              <select
+                value={tahsilatType}
+                onChange={(e) => setTahsilatType(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white outline-none focus:border-emerald-500"
+              >
+                <option value="NAKIT">Nakit</option>
+                <option value="KREDI_KARTI">Kredi Kartı</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
               <button onClick={handleTahsilat}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold text-sm">Tahsilatı Al</button>
               <button onClick={() => setTahsilatCustomer(null)}

@@ -9,10 +9,11 @@ interface AppState {
   activeCashierName: string;
   username: string;
   userRole: string;
+  userId: number;
   isAuthenticated: boolean;
   setCurrentTab: (tab: NavTab) => void;
   setSystemStatus: (status: HealthCheckResponse) => void;
-  login: (name: string, role: string, username: string) => void;
+  login: (name: string, role: string, username: string, userId: number) => void;
   logout: () => void;
 }
 
@@ -22,9 +23,10 @@ export const useAppStore = create<AppState>((set) => ({
   activeCashierName: "",
   username: "",
   userRole: "",
+  userId: 0,
   isAuthenticated: false,
   setCurrentTab: (tab: NavTab) => set({ currentTab: tab }),
   setSystemStatus: (status: HealthCheckResponse) => set({ systemStatus: status }),
-  login: (name, role, username) => set({ activeCashierName: name, userRole: role, username, isAuthenticated: true }),
-  logout: () => set({ activeCashierName: "", userRole: "", username: "", isAuthenticated: false }),
+  login: (name, role, username, userId) => set({ activeCashierName: name, userRole: role, username, userId, isAuthenticated: true }),
+  logout: () => set({ activeCashierName: "", userRole: "", username: "", userId: 0, isAuthenticated: false }),
 }));

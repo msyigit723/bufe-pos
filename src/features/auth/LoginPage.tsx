@@ -39,7 +39,7 @@ export const LoginPage: React.FC = () => {
       const isValid: boolean = await invoke('verify_password', { password, hash });
       
       if (isValid) {
-        login(user.full_name, user.role, user.username);
+        login(user.full_name, user.role, user.username, user.id);
       } else {
         setError('Hatalı parola.');
       }

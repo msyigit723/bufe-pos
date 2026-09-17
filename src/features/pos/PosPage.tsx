@@ -130,7 +130,7 @@ export const PosPage: React.FC = () => {
     }
   };
 
-  const handlePaymentConfirm = async (type: PaymentType, amountKurus: number, customerId: number | null) => {
+  const handlePaymentConfirm = async (allocations: {type: PaymentType, amountKurus: number}[], customerId: number | null) => {
     if (store.isProcessing) return; // Double-submit protection
     store.setProcessing(true);
     try {
@@ -143,7 +143,7 @@ export const PosPage: React.FC = () => {
           discount_amount_kurus: i.discountKurus,
           vat_rate: i.vatRate
         })),
-        payments: [{ payment_type: type, amount_kurus: amountKurus }],
+        payments: allocations.map(a => ({ payment_type: a.type, amount_kurus: a.amountKurus })),
         customer_id: customerId,
         cash_register_id: null
       };

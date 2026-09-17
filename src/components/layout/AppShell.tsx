@@ -19,7 +19,7 @@ import { DatabaseService } from "../../application/services/DatabaseService";
 import { ProductsPage } from "../../features/products/ProductsPage";
 import { PosPage } from "../../features/pos/PosPage";
 import { CashRegisterPage } from "../../features/cash/CashRegisterPage";
-import { DailyReportsPage } from "../../features/reports/DailyReportsPage";
+import { ReportsContainer } from "../../features/reports/ReportsContainer";
 import { SettingsPage } from "../../features/settings/SettingsPage";
 import { TablesPage } from "../../features/tables/TablesPage";
 import { InventoryPage } from "../../features/inventory/InventoryPage";
@@ -166,7 +166,7 @@ export const AppShell: React.FC = () => {
         ) : currentTab === "cash" ? (
           <CashRegisterPage />
         ) : currentTab === "reports" ? (
-          <DailyReportsPage />
+          <ReportsContainer />
         ) : currentTab === "settings" ? (
           <SettingsPage />
         ) : null}

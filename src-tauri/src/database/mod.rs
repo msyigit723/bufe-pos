@@ -76,6 +76,10 @@ impl DatabaseManager {
             ("0004_tables_management.sql", include_str!("../../migrations/0004_tables_management.sql")),
             ("0005_seed_data.sql", include_str!("../../migrations/0005_seed_data.sql")),
             ("0006_fix_auth.sql", include_str!("../../migrations/0006_fix_auth.sql")),
+            ("0007_add_track_stock.sql", include_str!("../../migrations/0007_add_track_stock.sql")),
+            ("0007_update_auth_passwords.sql", include_str!("../../migrations/0007_update_auth_passwords.sql")),
+            ("0008_pos_extensions.sql", include_str!("../../migrations/0008_pos_extensions.sql")),
+            ("0009_customer_payments.sql", include_str!("../../migrations/0009_customer_payments.sql")),
         ];
 
         for (name, sql) in migrations {

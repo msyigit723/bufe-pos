@@ -46,9 +46,9 @@ export class CustomerService {
     }
   }
 
-  static async receiveCustomerPayment(customerId: number, amountKurus: number, cashRegisterId: number): Promise<void> {
+  static async receivePayment(customerId: number, amountKurus: number, paymentType: string, cashRegisterId: number): Promise<void> {
     try {
-      await invoke('receive_customer_payment', { customerId, amountKurus, cashRegisterId });
+      await invoke('receive_customer_payment', { customerId, amountKurus, paymentType, cashRegisterId });
     } catch (error: any) {
       throw new Error(error.toString());
     }

@@ -1,12 +1,15 @@
-﻿use crate::database::DatabaseManager;
+use crate::database::DatabaseManager;
 use crate::security::SecurityManager;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub fn get_db_manager() -> DatabaseManager {
+    if let Ok(test_dir) = std::env::var("BUFEPOS_TEST_DB_DIR") {
+        return DatabaseManager::new(std::path::PathBuf::from(test_dir));
+    }
     let app_dir = dirs::data_local_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")))
         .join("BufePOS");
     DatabaseManager::new(app_dir)
 }
@@ -1029,6 +1032,8 @@ pub struct SaleSummaryDto {
     pub payment_status: String,
     pub item_count: i64,
     pub created_at: String,
+    pub status: String,
+    pub refunded_amount_kurus: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -1278,7 +1283,7 @@ pub fn get_recent_sales(limit: Option<i64>) -> Result<Vec<SaleSummaryDto>, Strin
     let limit = limit.unwrap_or(20);
 
     let mut stmt = conn.prepare(
-        "SELECT s.id, s.receipt_no, s.total_amount_kurus, s.payment_status, REPLACE(s.created_at, ' ', 'T') || 'Z' as created_at, COUNT(si.id) as item_count
+        "SELECT s.id, s.receipt_no, s.total_amount_kurus, s.payment_status, REPLACE(s.created_at, ' ', 'T') || 'Z' as created_at, COUNT(si.id) as item_count, s.status, COALESCE(s.refunded_amount_kurus, 0)
          FROM sales s
          LEFT JOIN sale_items si ON s.id = si.sale_id
          GROUP BY s.id
@@ -1294,8 +1299,49 @@ pub fn get_recent_sales(limit: Option<i64>) -> Result<Vec<SaleSummaryDto>, Strin
             payment_status: row.get(3)?,
             created_at: row.get(4)?,
             item_count: row.get(5)?,
+            status: row.get(6)?,
+            refunded_amount_kurus: row.get(7)?,
         })
-    }).map_err(|e| format!("SatÄ±ÅŸlar okunamadÄ±: {}", e))?;
+    }).map_err(|e| format!("Satışlar okunamadı: {}", e))?;
+
+    let mut sales = Vec::new();
+    for sale in iter {
+        if let Ok(s) = sale {
+            sales.push(s);
+        }
+    }
+
+    Ok(sales)
+}
+
+#[tauri::command]
+pub fn get_sales_history(days: i32) -> Result<Vec<SaleSummaryDto>, String> {
+    let db_manager = get_db_manager();
+    let conn = db_manager.get_connection().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn.prepare(
+        "SELECT s.id, s.receipt_no, s.total_amount_kurus, s.payment_status, REPLACE(s.created_at, ' ', 'T') || 'Z' as created_at, COUNT(si.id) as item_count, s.status, COALESCE(s.refunded_amount_kurus, 0)
+         FROM sales s
+         LEFT JOIN sale_items si ON s.id = si.sale_id
+         WHERE datetime(s.created_at, 'localtime') >= datetime('now', 'localtime', ?)
+         GROUP BY s.id
+         ORDER BY s.created_at DESC"
+    ).map_err(|e| format!("Sorgu hazırlanamadı: {}", e))?;
+
+    let days_modifier = format!("-{} days", days);
+    
+    let iter = stmt.query_map(params![days_modifier], |row| {
+        Ok(SaleSummaryDto {
+            id: row.get(0)?,
+            receipt_no: row.get(1)?,
+            total_amount_kurus: row.get(2)?,
+            payment_status: row.get(3)?,
+            created_at: row.get(4)?,
+            item_count: row.get(5)?,
+            status: row.get(6)?,
+            refunded_amount_kurus: row.get(7)?,
+        })
+    }).map_err(|e| format!("Satışlar okunamadı: {}", e))?;
 
     let mut sales = Vec::new();
     for sale in iter {
@@ -1530,27 +1576,38 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     let db = get_db_manager();
     let conn = db.get_connection().map_err(|e| e.to_string())?;
     
-    // Using date filters on created_at
-    // For SQLite, dates are 'YYYY-MM-DD HH:MM:SS'
     let sale_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sales WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') <= ?",
+        "SELECT COUNT(*) FROM sales WHERE status != 'CANCELLED' AND datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') <= ?",
         params![start_date, end_date],
         |row| row.get(0),
     ).unwrap_or(0);
 
     let mut stmt = conn.prepare(
-        "SELECT COALESCE(SUM(total_amount_kurus), 0), COALESCE(SUM(discount_amount_kurus), 0), COALESCE(SUM(vat_amount_kurus), 0)
+        "SELECT 
+            COALESCE(SUM(total_amount_kurus), 0) as gross_sales,
+            COALESCE(SUM(CASE WHEN status = 'CANCELLED' THEN total_amount_kurus ELSE 0 END), 0) as cancelled_amount,
+            COALESCE(SUM(refunded_amount_kurus), 0) as refunded_amount,
+            COALESCE(SUM(discount_amount_kurus), 0) as total_discount,
+            COALESCE(SUM(vat_amount_kurus), 0) as total_vat
          FROM sales WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') <= ?"
     ).map_err(|e| e.to_string())?;
     
-    let (total_sales_kurus, total_discount_kurus, total_vat_kurus) = stmt.query_row(params![start_date, end_date], |row| {
-        Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
-    }).unwrap_or((0, 0, 0));
+    let (gross_sales_kurus, cancelled_amount_kurus, refunded_amount_kurus, total_discount_kurus, total_vat_kurus) = stmt.query_row(params![start_date, end_date], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+            row.get::<_, i64>(3)?,
+            row.get::<_, i64>(4)?
+        ))
+    }).unwrap_or((0, 0, 0, 0, 0));
+
+    let net_sales_kurus = gross_sales_kurus - cancelled_amount_kurus - refunded_amount_kurus;
 
     let total_items_sold: f64 = conn.query_row(
-        "SELECT COALESCE(SUM(quantity), 0) FROM sale_items 
+        "SELECT COALESCE(SUM(sale_items.quantity), 0) FROM sale_items 
          JOIN sales ON sales.id = sale_items.sale_id
-         WHERE datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?",
+         WHERE sales.status != 'CANCELLED' AND datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?",
         params![start_date, end_date],
         |row| row.get(0),
     ).unwrap_or(0.0);
@@ -1558,7 +1615,7 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     let mut stmt_pay = conn.prepare(
         "SELECT payment_type, COALESCE(SUM(amount_kurus), 0) FROM sale_payments 
          JOIN sales ON sales.id = sale_payments.sale_id
-         WHERE datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?
+         WHERE sales.status != 'CANCELLED' AND datetime(sales.created_at, 'localtime') >= ? AND datetime(sales.created_at, 'localtime') <= ?
          GROUP BY payment_type"
     ).map_err(|e| e.to_string())?;
     
@@ -1584,7 +1641,7 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
     }
 
     Ok(DailySalesSummaryDto {
-        total_sales_kurus,
+        total_sales_kurus: net_sales_kurus,
         sale_count,
         total_items_sold: total_items_sold as i64,
         total_discount_kurus,
@@ -1594,6 +1651,151 @@ pub fn get_daily_sales_summary(start_date: String, end_date: String) -> Result<D
         qr_total_kurus,
         veresiye_total_kurus,
     })
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DailyRevenueDto {
+    pub date: String,
+    pub gross_sales_kurus: i64,
+    pub cancelled_amount_kurus: i64,
+    pub refunded_amount_kurus: i64,
+    pub net_revenue_kurus: i64,
+    pub cash_revenue_kurus: i64,
+    pub card_revenue_kurus: i64,
+    pub credit_revenue_kurus: i64,
+    pub debt_collection_kurus: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MonthlyRevenueReportDto {
+    pub year: i32,
+    pub month: i32,
+    pub total_net_revenue_kurus: i64,
+    pub total_cash_revenue_kurus: i64,
+    pub total_card_revenue_kurus: i64,
+    pub total_credit_revenue_kurus: i64,
+    pub total_debt_collection_kurus: i64,
+    pub total_cancelled_amount_kurus: i64,
+    pub total_refunded_amount_kurus: i64,
+    pub days: Vec<DailyRevenueDto>,
+}
+
+#[tauri::command]
+pub fn get_monthly_revenue_report(year: i32, month: i32) -> Result<MonthlyRevenueReportDto, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+
+    let start_date = format!("{:04}-{:02}-01 00:00:00", year, month);
+    let end_date = if month == 12 {
+        format!("{:04}-01-01 00:00:00", year + 1)
+    } else {
+        format!("{:04}-{:02}-01 00:00:00", year, month + 1)
+    };
+
+    let mut stmt = conn.prepare("
+        WITH RECURSIVE dates(date) AS (
+            SELECT date(?)
+            UNION ALL
+            SELECT date(date, '+1 day')
+            FROM dates
+            WHERE date < date(?, '-1 day')
+        ),
+        sales_agg AS (
+            SELECT 
+                date(created_at, 'localtime') as sale_date,
+                COALESCE(SUM(total_amount_kurus), 0) as gross,
+                COALESCE(SUM(CASE WHEN status = 'CANCELLED' THEN total_amount_kurus ELSE 0 END), 0) as cancelled,
+                COALESCE(SUM(refunded_amount_kurus), 0) as refunded
+            FROM sales
+            WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') < ?
+            GROUP BY date(created_at, 'localtime')
+        ),
+        payments_agg AS (
+            SELECT 
+                date(s.created_at, 'localtime') as p_date,
+                COALESCE(SUM(CASE WHEN sp.payment_type = 'NAKIT' THEN sp.amount_kurus ELSE 0 END), 0) as cash,
+                COALESCE(SUM(CASE WHEN sp.payment_type = 'KREDI_KARTI' THEN sp.amount_kurus ELSE 0 END), 0) as card,
+                COALESCE(SUM(CASE WHEN sp.payment_type = 'CARI_VERESIYE' THEN sp.amount_kurus ELSE 0 END), 0) as credit
+            FROM sale_payments sp
+            JOIN sales s ON s.id = sp.sale_id
+            WHERE s.status != 'CANCELLED' AND datetime(s.created_at, 'localtime') >= ? AND datetime(s.created_at, 'localtime') < ?
+            GROUP BY date(s.created_at, 'localtime')
+        ),
+        debt_agg AS (
+            SELECT 
+                date(created_at, 'localtime') as d_date,
+                COALESCE(SUM(amount_kurus), 0) as collected
+            FROM customer_payments
+            WHERE datetime(created_at, 'localtime') >= ? AND datetime(created_at, 'localtime') < ?
+            GROUP BY date(created_at, 'localtime')
+        )
+        SELECT 
+            d.date,
+            COALESCE(s.gross, 0),
+            COALESCE(s.cancelled, 0),
+            COALESCE(s.refunded, 0),
+            COALESCE(p.cash, 0),
+            COALESCE(p.card, 0),
+            COALESCE(p.credit, 0),
+            COALESCE(da.collected, 0)
+        FROM dates d
+        LEFT JOIN sales_agg s ON d.date = s.sale_date
+        LEFT JOIN payments_agg p ON d.date = p.p_date
+        LEFT JOIN debt_agg da ON d.date = da.d_date
+        ORDER BY d.date ASC
+    ").map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map(params![start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date], |row| {
+        let date: String = row.get(0)?;
+        let gross: i64 = row.get(1)?;
+        let cancelled: i64 = row.get(2)?;
+        let refunded: i64 = row.get(3)?;
+        let cash: i64 = row.get(4)?;
+        let card: i64 = row.get(5)?;
+        let credit: i64 = row.get(6)?;
+        let collected: i64 = row.get(7)?;
+        
+        let net = gross - cancelled - refunded;
+
+        Ok(DailyRevenueDto {
+            date,
+            gross_sales_kurus: gross,
+            cancelled_amount_kurus: cancelled,
+            refunded_amount_kurus: refunded,
+            net_revenue_kurus: net,
+            cash_revenue_kurus: cash,
+            card_revenue_kurus: card,
+            credit_revenue_kurus: credit,
+            debt_collection_kurus: collected,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut report = MonthlyRevenueReportDto {
+        year, month,
+        total_net_revenue_kurus: 0,
+        total_cash_revenue_kurus: 0,
+        total_card_revenue_kurus: 0,
+        total_credit_revenue_kurus: 0,
+        total_debt_collection_kurus: 0,
+        total_cancelled_amount_kurus: 0,
+        total_refunded_amount_kurus: 0,
+        days: vec![]
+    };
+
+    for r in rows {
+        if let Ok(day) = r {
+            report.total_net_revenue_kurus += day.net_revenue_kurus;
+            report.total_cash_revenue_kurus += day.cash_revenue_kurus;
+            report.total_card_revenue_kurus += day.card_revenue_kurus;
+            report.total_credit_revenue_kurus += day.credit_revenue_kurus;
+            report.total_debt_collection_kurus += day.debt_collection_kurus;
+            report.total_cancelled_amount_kurus += day.cancelled_amount_kurus;
+            report.total_refunded_amount_kurus += day.refunded_amount_kurus;
+            report.days.push(day);
+        }
+    }
+
+    Ok(report)
 }
 
 // --- PHASE 5: MÃœÅTERÄ° / VERESÄ°YE ---
@@ -2643,5 +2845,281 @@ pub fn change_user_password(username: String, current_password: String, new_pass
 #[tauri::command]
 pub fn log_message(msg: String) -> Result<(), String> {
     let _ = std::fs::write("C:\\Users\\Ali AltÄ±n\\Desktop\\bufe-pos\\debug.txt", msg);
+    Ok(())
+}
+
+
+// --- PHASE 6: İPTAL İŞLEMİ ---
+
+#[tauri::command]
+pub fn cancel_sale(sale_id: i64, user_id: i64, reason: Option<String>) -> Result<(), String> {
+    let db = get_db_manager();
+    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    let role: String = conn.query_row(
+        "SELECT r.name FROM users u LEFT JOIN user_roles ur ON u.id = ur.user_id LEFT JOIN roles r ON ur.role_id = r.id WHERE u.id = ?",
+        [user_id],
+        |row| row.get::<_, Option<String>>(0).map(|s| s.unwrap_or_else(|| "PERSONEL".to_string()))
+    ).map_err(|_| "Kullanıcı bulunamadı".to_string())?;
+    
+    if role != "ADMIN" { return Err("Bu işlem için yetkiniz yok.".to_string()); }
+    
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let (status, receipt_no, cash_register_id, customer_id): (String, String, Option<i64>, Option<i64>) = tx.query_row(
+        "SELECT status, receipt_no, cash_register_id, customer_id FROM sales WHERE id = ?",
+        params![sale_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+    ).map_err(|_| "Satış bulunamadı.".to_string())?;
+
+    if status != "COMPLETED" {
+        return Err("Sadece durumu 'TAMAMLANDI' olan satışlar iptal edilebilir.".to_string());
+    }
+
+    // 1. İptal Stok İşlemleri
+    let mut stmt = tx.prepare("SELECT product_id, quantity FROM sale_items WHERE sale_id = ?").unwrap();
+    let items = stmt.query_map(params![sale_id], |row| {
+        Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(1)?))
+    }).unwrap();
+
+    let warehouse_id = 1; // Varsayılan depo
+
+    for item in items {
+        if let Ok((p_id, qty)) = item {
+            let track_stock: bool = tx.query_row("SELECT track_stock FROM products WHERE id = ?", params![p_id], |row| row.get(0)).unwrap_or(false);
+            if track_stock {
+                tx.execute(
+                    "UPDATE stock SET quantity = quantity + ? WHERE product_id = ? AND warehouse_id = ?",
+                    params![qty, p_id, warehouse_id]
+                ).map_err(|e| e.to_string())?;
+                tx.execute(
+                    "INSERT INTO stock_movements (product_id, warehouse_id, movement_type, quantity, user_id, note, reference_type, reference_id) VALUES (?, ?, 'SATIS_IADE', ?, 1, ?, 'SALE', ?)", 
+                    params![p_id, warehouse_id, qty, format!("İptal Fiş: {}", receipt_no), sale_id]
+                ).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    // 2. İptal Ödeme / Kasa İşlemleri
+    let mut stmt_pay = tx.prepare("SELECT payment_type, amount_kurus FROM sale_payments WHERE sale_id = ?").unwrap();
+    let payments = stmt_pay.query_map(params![sale_id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    }).unwrap();
+
+    for pay in payments {
+        if let Ok((ptype, amt)) = pay {
+            if ptype == "NAKIT" {
+                if let Some(c_id) = cash_register_id {
+                    tx.execute("UPDATE cash_registers SET current_balance_kurus = current_balance_kurus - ? WHERE id = ?", params![amt, c_id]).map_err(|e| e.to_string())?;
+                    tx.execute(
+                        "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, user_id, note, sale_id) VALUES (?, 'NAKIT_CIKIS', ?, 1, ?, ?)",
+                        params![c_id, amt, format!("Satış iptali - Fiş: {}", receipt_no), sale_id]
+                    ).map_err(|e| e.to_string())?;
+                }
+            } else if ptype == "CARI_VERESIYE" {
+                if let Some(c_id) = customer_id {
+                    tx.execute("UPDATE customers SET balance_kurus = balance_kurus - ? WHERE id = ?", params![amt, c_id]).map_err(|e| e.to_string())?;
+                }
+            }
+        }
+    }
+
+
+    // 3. Durum Güncelleme
+    drop(stmt);
+    drop(stmt_pay);
+    tx.execute(
+
+        "UPDATE sales SET status = 'CANCELLED', cancelled_at = CURRENT_TIMESTAMP, cancel_reason = ?, cancelled_by = 1 WHERE id = ?",
+        params![reason, sale_id]
+    ).map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+
+// --- PHASE 7: İADE İŞLEMİ ---
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SaleDetailItemDto {
+    pub id: i64,
+    pub product_id: i64,
+    pub product_name: String,
+    pub quantity: f64,
+    pub refunded_quantity: f64,
+    pub unit_price_kurus: i64,
+    pub line_total_kurus: i64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SaleDetailDto {
+    pub id: i64,
+    pub receipt_no: String,
+    pub status: String,
+    pub total_amount_kurus: i64,
+    pub refunded_amount_kurus: i64,
+    pub items: Vec<SaleDetailItemDto>,
+    pub created_at: String,
+}
+
+#[tauri::command]
+pub fn get_sale_details(sale_id: i64) -> Result<SaleDetailDto, String> {
+    let db = get_db_manager();
+    let conn = db.get_connection().map_err(|e| e.to_string())?;
+
+    let (id, receipt_no, status, total, refunded, created_at): (i64, String, String, i64, i64, String) = conn.query_row(
+        "SELECT id, receipt_no, status, total_amount_kurus, COALESCE(refunded_amount_kurus, 0), REPLACE(created_at, ' ', 'T') || 'Z'
+         FROM sales WHERE id = ?",
+        params![sale_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?))
+    ).map_err(|_| "Satış bulunamadı.".to_string())?;
+
+    let mut stmt = conn.prepare(
+        "SELECT si.id, si.product_id, p.name, si.quantity, si.refunded_quantity, si.unit_price_kurus, si.line_total_kurus 
+         FROM sale_items si 
+         JOIN products p ON p.id = si.product_id 
+         WHERE si.sale_id = ?"
+    ).unwrap();
+
+    let iter = stmt.query_map(params![sale_id], |row| {
+        Ok(SaleDetailItemDto {
+            id: row.get(0)?,
+            product_id: row.get(1)?,
+            product_name: row.get(2)?,
+            quantity: row.get(3)?,
+            refunded_quantity: row.get(4)?,
+            unit_price_kurus: row.get(5)?,
+            line_total_kurus: row.get(6)?,
+        })
+    }).unwrap();
+
+    let mut items = Vec::new();
+    for item in iter {
+        if let Ok(i) = item {
+            items.push(i);
+        }
+    }
+
+    Ok(SaleDetailDto { id, receipt_no, status, total_amount_kurus: total, refunded_amount_kurus: refunded, items, created_at })
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RefundItemInput {
+    pub sale_item_id: i64,
+    pub quantity: f64,
+}
+
+#[tauri::command]
+pub fn refund_sale(sale_id: i64, user_id: i64, items: Vec<RefundItemInput>, reason: Option<String>) -> Result<(), String> {
+    let db = get_db_manager();
+    let mut conn = db.get_connection().map_err(|e| e.to_string())?;
+    
+    let role: String = conn.query_row(
+        "SELECT r.name FROM users u LEFT JOIN user_roles ur ON u.id = ur.user_id LEFT JOIN roles r ON ur.role_id = r.id WHERE u.id = ?",
+        [user_id],
+        |row| row.get::<_, Option<String>>(0).map(|s| s.unwrap_or_else(|| "PERSONEL".to_string()))
+    ).map_err(|_| "Kullanıcı bulunamadı".to_string())?;
+    
+    if role != "ADMIN" { return Err("Bu işlem için yetkiniz yok (Sadece ADMIN).".to_string()); }
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let (status, receipt_no, cash_register_id, customer_id): (String, String, Option<i64>, Option<i64>) = tx.query_row(
+        "SELECT status, receipt_no, cash_register_id, customer_id FROM sales WHERE id = ?",
+        params![sale_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+    ).map_err(|_| "Satış bulunamadı".to_string())?;
+
+    if status == "CANCELLED" {
+        return Err("İptal edilmiş satış iade edilemez.".to_string());
+    }
+
+    let mut total_refund_kurus = 0;
+
+    tx.execute("INSERT INTO refunds (sale_id, amount_kurus, reason, user_id) VALUES (?, 0, ?, 1)", params![sale_id, reason.clone()]).map_err(|e| e.to_string())?;
+    let refund_id = tx.last_insert_rowid();
+
+    for req_item in items {
+        if req_item.quantity <= 0.0 { continue; }
+        let (p_id, unit_price, max_qty, refunded_qty): (i64, i64, f64, f64) = tx.query_row(
+            "SELECT product_id, unit_price_kurus, quantity, refunded_quantity FROM sale_items WHERE id = ? AND sale_id = ?",
+            params![req_item.sale_item_id, sale_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        ).map_err(|_| "Ürün bulunamadı.".to_string())?;
+
+        if req_item.quantity > (max_qty - refunded_qty) {
+            return Err("İade miktarı kalan miktardan büyük olamaz.".to_string());
+        }
+
+        let refund_val = (unit_price as f64 * req_item.quantity) as i64;
+        total_refund_kurus += refund_val;
+
+        tx.execute("UPDATE sale_items SET refunded_quantity = refunded_quantity + ? WHERE id = ?", params![req_item.quantity, req_item.sale_item_id]).unwrap();
+
+        tx.execute("INSERT INTO refund_items (refund_id, sale_item_id, quantity, amount_kurus) VALUES (?, ?, ?, ?)",
+            params![refund_id, req_item.sale_item_id, req_item.quantity, refund_val]).unwrap();
+
+        let track_stock: bool = tx.query_row("SELECT track_stock FROM products WHERE id = ?", params![p_id], |row| row.get(0)).unwrap_or(false);
+        if track_stock {
+            tx.execute(
+                "UPDATE stock SET quantity = quantity + ? WHERE product_id = ? AND warehouse_id = 1",
+                params![req_item.quantity, p_id]
+            ).unwrap();
+            tx.execute(
+                "INSERT INTO stock_movements (product_id, warehouse_id, movement_type, quantity, user_id, note, reference_type, reference_id) VALUES (?, 1, 'SATIS_IADE', ?, 1, ?, 'REFUND', ?)", 
+                params![p_id, req_item.quantity, format!("İade Fiş: {}", receipt_no), refund_id]
+            ).unwrap();
+        }
+    }
+
+    if total_refund_kurus <= 0 {
+        return Err("İade edilecek ürün seçilmedi.".to_string());
+    }
+
+    tx.execute("UPDATE refunds SET amount_kurus = ? WHERE id = ?", params![total_refund_kurus, refund_id]).unwrap();
+
+    // Akıllı iade ödeme tahsisi: Nakit varsa Nakit'ten, Kredi Kartı varsa Karttan, Veresiye varsa Veresiyeden düş.
+    // Basitlik için sadece tek ödeme yöntemini kabul edelim veya en güvenli yol: NAKIT
+    // Tamamı veresiye ise bakiyeyi düşelim.
+    let mut stmt_pay = tx.prepare("SELECT payment_type, amount_kurus FROM sale_payments WHERE sale_id = ?").unwrap();
+    let payments = stmt_pay.query_map(params![sale_id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    }).unwrap();
+
+    let mut total_paid_orig = 0;
+    let mut has_veresiye = false;
+    for p in payments {
+        if let Ok((pt, amt)) = p {
+            total_paid_orig += amt;
+            if pt == "CARI_VERESIYE" { has_veresiye = true; }
+        }
+    }
+
+    if has_veresiye && total_paid_orig > 0 {
+        if let Some(c_id) = customer_id {
+            tx.execute("UPDATE customers SET balance_kurus = balance_kurus - ? WHERE id = ?", params![total_refund_kurus, c_id]).unwrap();
+        }
+    } else {
+        if let Some(c_id) = cash_register_id {
+            tx.execute("UPDATE cash_registers SET current_balance_kurus = current_balance_kurus - ? WHERE id = ?", params![total_refund_kurus, c_id]).unwrap();
+            tx.execute(
+                "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, user_id, note, sale_id) VALUES (?, 'NAKIT_CIKIS', ?, 1, ?, ?)",
+                params![c_id, total_refund_kurus, format!("İade - Fiş: {}", receipt_no), sale_id]
+            ).unwrap();
+        }
+    }
+
+    let (orig_total, current_refunded): (i64, i64) = tx.query_row("SELECT total_amount_kurus, COALESCE(refunded_amount_kurus, 0) FROM sales WHERE id = ?", params![sale_id], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+    
+    let new_refunded = current_refunded + total_refund_kurus;
+
+    let new_status = if new_refunded >= orig_total { "REFUNDED" } else { "PARTIALLY_REFUNDED" };
+    drop(stmt_pay);
+
+    tx.execute("UPDATE sales SET refunded_amount_kurus = ?, status = ? WHERE id = ?", params![new_refunded, new_status, sale_id]).unwrap();
+
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
