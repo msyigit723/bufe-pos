@@ -1901,10 +1901,10 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
     
     // Tahsilat hareketleri (negatif = borÃ§ azalmasÄ±)
     let mut stmt2 = conn.prepare(
-        "SELECT REPLACE(cm.created_at, ' ', 'T') || 'Z', 'Tahsilat', cm.amount_kurus
-         FROM cash_movements cm
-         WHERE cm.customer_id = ? AND cm.movement_type = 'VERESIYE_TAHSILAT'
-         ORDER BY cm.created_at DESC"
+        "SELECT REPLACE(cp.created_at, ' ', 'T') || 'Z', 'Tahsilat - ' || cp.payment_type, cp.amount_kurus
+         FROM customer_payments cp
+         WHERE cp.customer_id = ?
+         ORDER BY cp.created_at DESC"
     ).map_err(|e| e.to_string())?;
     
     let pay_rows = stmt2.query_map(params![customer_id], |row| {
@@ -1928,9 +1928,13 @@ pub fn get_customer_history(customer_id: i64) -> Result<Vec<CustomerHistoryDto>,
 }
 
 #[tauri::command]
-pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, cash_register_id: i64) -> Result<(), String> {
+pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, payment_type: String, cash_register_id: i64) -> Result<(), String> {
     if amount_kurus <= 0 {
         return Err("Tahsilat tutarÄ± sÄ±fÄ±rdan bÃ¼yÃ¼k olmalÄ±dÄ±r.".to_string());
+    }
+    
+    if payment_type != "NAKIT" && payment_type != "KREDI_KARTI" {
+        return Err("GeÃ§ersiz tahsilat tipi.".to_string());
     }
     
     let db = get_db_manager();
@@ -1953,16 +1957,24 @@ pub fn receive_customer_payment(customer_id: i64, amount_kurus: i64, cash_regist
         params![amount_kurus, customer_id],
     ).map_err(|e| e.to_string())?;
     
-    // Kasa bakiyesini artÄ±r
-    tx.execute(
-        "UPDATE cash_registers SET current_balance_kurus = current_balance_kurus + ? WHERE id = ?",
-        params![amount_kurus, cash_register_id],
-    ).map_err(|e| e.to_string())?;
+    if payment_type == "NAKIT" {
+        // Kasa bakiyesini artÄ±r
+        tx.execute(
+            "UPDATE cash_registers SET current_balance_kurus = current_balance_kurus + ? WHERE id = ?",
+            params![amount_kurus, cash_register_id],
+        ).map_err(|e| e.to_string())?;
+        
+        // Kasa hareketi oluÅŸtur
+        tx.execute(
+            "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, customer_id, user_id) VALUES (?, 'VERESIYE_TAHSILAT', ?, ?, 1)",
+            params![cash_register_id, amount_kurus, customer_id],
+        ).map_err(|e| e.to_string())?;
+    }
     
-    // Kasa hareketi oluÅŸtur
+    // Tahsilat kaydÄ±nÄ± ekle
     tx.execute(
-        "INSERT INTO cash_movements (cash_register_id, movement_type, amount_kurus, customer_id, user_id) VALUES (?, 'VERESIYE_TAHSILAT', ?, ?, 1)",
-        params![cash_register_id, amount_kurus, customer_id],
+        "INSERT INTO customer_payments (customer_id, amount_kurus, payment_type, cash_register_id, user_id) VALUES (?, ?, ?, ?, 1)",
+        params![customer_id, amount_kurus, payment_type, cash_register_id],
     ).map_err(|e| e.to_string())?;
     
     tx.commit().map_err(|e| e.to_string())?;

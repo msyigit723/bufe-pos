@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { DailyReportsPage } from './DailyReportsPage';
 import { MonthlyReportPage } from './MonthlyReportPage';
 import { Last7DaysHistoryPage } from './Last7DaysHistoryPage';
+import { CustomersPage } from '../customers/CustomersPage';
 
 export const ReportsContainer: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'daily' | 'monthly' | 'history'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'monthly' | 'history' | 'veresiye'>('daily');
 
   return (
     <div className="flex flex-col h-full bg-slate-950">
@@ -27,11 +28,18 @@ export const ReportsContainer: React.FC = () => {
         >
           Son 7 Gün Geçmiş
         </button>
+        <button
+          onClick={() => setActiveTab('veresiye')}
+          className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${activeTab === 'veresiye' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+        >
+          Veresiye Hesaplar
+        </button>
       </div>
       <div className="flex-1 overflow-hidden">
         {activeTab === 'daily' && <DailyReportsPage />}
         {activeTab === 'monthly' && <MonthlyReportPage />}
         {activeTab === 'history' && <Last7DaysHistoryPage />}
+        {activeTab === 'veresiye' && <CustomersPage />}
       </div>
     </div>
   );

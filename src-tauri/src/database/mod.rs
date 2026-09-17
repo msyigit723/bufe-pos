@@ -80,6 +80,7 @@ impl DatabaseManager {
             ("0007_update_auth_passwords.sql", include_str!("../../migrations/0007_update_auth_passwords.sql")),
             ("0008_pos_extensions.sql", include_str!("../../migrations/0008_pos_extensions.sql")),
             ("0009_customer_payments.sql", include_str!("../../migrations/0009_customer_payments.sql")),
+            ("0010_migrate_old_tahsilats.sql", include_str!("../../migrations/0010_migrate_old_tahsilats.sql")),
         ];
 
         for (name, sql) in migrations {
